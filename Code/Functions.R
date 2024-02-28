@@ -29,13 +29,28 @@ GetMetrics<-function(rasterfile,outpath,outres = 30,ncpus = 15,zradii = c(3,6,10
       file.copy(rasterfile,paste(outpath,"/temp.tif",sep = ""))
       r1<-rast(paste(outpath,"/temp.tif",sep = ""));names(r1)<-c("r","g","b","n")
       cat("  making NDVI")
-      num<-subset(r1,4)- subset(r1,1)
-      denom<-subset(r1,4)+ subset(r1,1)
-      ndvi<-num/denom
+        num<-subset(r1,4)- subset(r1,1)
+        denom<-subset(r1,4)+ subset(r1,1)
+        ndvi<-num/denom
+      cat("  making NDGR")
+        num<-subset(r1,2)- subset(r1,1)
+        denom<-subset(r1,2)+ subset(r1,1)
+        ndgr<-num/denom
+      cat("  making NDNG")
+        num<-subset(r1,4)- subset(r1,2)
+        denom<-subset(r1,4)+ subset(r1,2)
+        ndng<-num/denom
+      
+      cat("  stretching Indices")
+        nd<-c(ndvi,ndgr,ndng)
+        nd<-stretch(nd,smin = -1, smax = 1)
+        
       cat("  making brightness")
-      br<-sum(r1)#app(r1,sum)
-      r1<-c(r1,ndvi= stretch(ndvi,smin = -1, smax = 1),br<-stretch(br, smin = 0, smax = 1020))
-      names(r1)<-c("r","g","b","n","ndvi","bri") 
+       br<-sum(r1)#app(r1,sum)
+       br<-stretch(br, smin = 0, smax = 1020)
+      #r1<-c(r1,ndvi= stretch(ndvi,smin = -1, smax = 1),ndgr=stretch(ndgr,smin = -1, smax = 1),ndng = stretch(ndng,smin = -1, smax = 1),br<-stretch(br, smin = 0, smax = 1020))
+      r1<-c(r1,nd,br)
+      names(r1)<-c("r","g","n","ndvi","ndgr","ndng","bri")# "b",
       r1
       #        r1<-writeRaster(r1,filename = paste(outpath,"/temp.tif",sep = ""),overwrite = T)
     })[[3]]/60)
