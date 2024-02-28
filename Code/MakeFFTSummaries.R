@@ -3,9 +3,10 @@ source("Code/Functions.R")
 ## RunCode ------------------
   library(terra)
   ci<-NULL
-  outpath<-"D:/R4_TEMP/AFFT"
-  airpath<-"D:/R4_TEMP/AFFT/raw"
-
+  airpath<-"0_raw"
+  outpath1<-"1_intermediate"
+  outpath2<-"2_aggregated"
+  
 ## Get tile footprints ---------
     fl1<-paste(airpath,list.files(airpath),sep = "/")
     nm1<-sapply(fl1,function(x){gsub(".tif","",strsplit(x,"/")[[1]][5])})

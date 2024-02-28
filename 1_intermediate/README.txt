@@ -1,0 +1,1 @@
+## Airphotos with calculated indices will be stored here.
