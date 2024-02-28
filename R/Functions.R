@@ -1,6 +1,16 @@
-
-## Functions -------------------
-
+## GetFootprints ------------
+#' Grabs extents from all airphotos imglist.
+#'
+#' @description This function is useful for imputation mapping from models built with the yaImpute package.
+#'
+#' @export
+#'
+#' @param imglist list of airphotos (text, full paths, with names)
+#' @param outcrs projection object if reprojection is needed
+#' @param return.as.list sets return to one airphoto extent (terra vect format) per object in a list (as opposed to one vect object)
+#' @param quiet set to F if more intermediate messaging is wanted.
+#' @return Terra vect object containing airphoto extents, either as a single object, or as a list of extents.
+#'
 GetFootprints<-function(imglist,outcrs = NULL,return.as.list = F, quiet = T){
   if(is.character(imglist)){
     if(is.null(outcrs)){outcrs<-crs(rast(imglist[1]))}
@@ -14,9 +24,26 @@ GetFootprints<-function(imglist,outcrs = NULL,return.as.list = F, quiet = T){
   el
 }
 
-GetMetrics<-function(rasterfile,outpath,outres = 30,ncpus = 15,zradii = c(3,6,10,20,40,55)){
+## GetMetrics ------------
+#' Calculates textural summaries of input images at an aggregated scale.
+#'
+#' @description This function is useful for imputation mapping from models built with the yaImpute package.
+#'
+#' @export
+#'
+#' @param rasterfile character vector with tif image names. If full path not included, GetMetrics will assume that files are in 0_raw folder.
+#' @param outpath1 file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)
+#' @param outpath2 file path pointer where R will store aggregated image tiles (reduced resolution), texture summaries across all bands and indices.
+#' @param outres resolution of output texture summaries
+#' @param ncpus specify number of cpus to use for parallel processing. 
+#' @param zradii numeric vector specifying frequency-length bins for summarizing fft spectrum. (maximum value of this should be larger than diagonal of output pixel size)
+#' @seealso \code{\link{MakeDonut}}
+#' @return multiband raster
+#'
+GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggregated", outres = 30,ncpus = 3,zradii = c(3,6,10,20,40,55)){
+  if(!grepl("/",rasterfile)){rasterfile<-paste("0_raw/",rasterfile,sep = "")}
   fn<-strsplit(rasterfile,split = "/")[[1]];fn<-fn[length(fn)]
-  outfile<-paste(outpath,paste("afft_",fn,sep = ""),sep = "/")
+  outfile<-paste(outpath1,paste("afft_",fn,sep = ""),sep = "/")
   if(file.exists(outfile)){
     outrast<-rast(outfile)
     res1<-res(rast(rasterfile))[1]
@@ -25,9 +52,9 @@ GetMetrics<-function(rasterfile,outpath,outres = 30,ncpus = 15,zradii = c(3,6,10
   }else{
     cat("  \n  Elapsed Time 1:",system.time({
       cat("\n",rasterfile)
-      file.remove(paste(outpath,"/temp.tif",sep = ""))
-      file.copy(rasterfile,paste(outpath,"/temp.tif",sep = ""))
-      r1<-rast(paste(outpath,"/temp.tif",sep = ""));names(r1)<-c("r","g","b","n")
+      file.remove(paste(outpath1,"/temp.tif",sep = ""))
+      file.copy(rasterfile,paste(outpath1,"/temp.tif",sep = ""))
+      r1<-rast(paste(outpath1,"/temp.tif",sep = ""));names(r1)<-c("r","g","b","n")
       cat("  making NDVI")
         num<-subset(r1,4)- subset(r1,1)
         denom<-subset(r1,4)+ subset(r1,1)
@@ -52,7 +79,7 @@ GetMetrics<-function(rasterfile,outpath,outres = 30,ncpus = 15,zradii = c(3,6,10
       r1<-c(r1,nd,br)
       names(r1)<-c("r","g","n","ndvi","ndgr","ndng","bri")# "b",
       r1
-      #        r1<-writeRaster(r1,filename = paste(outpath,"/temp.tif",sep = ""),overwrite = T)
+#      r1<-writeRaster(r1,filename = paste(outpath1,"/temp.tif",sep = ""),overwrite = T)
     })[[3]]/60)
     fact1<-outres/res(r1)[1]
     donut<-round(c(MakeDonut(zradii,res1 = res(r1)[1],fact1)),2)
@@ -88,7 +115,19 @@ GetMetrics<-function(rasterfile,outpath,outres = 30,ncpus = 15,zradii = c(3,6,10
   file.remove(paste(outpath,"/temp.tif",sep = ""))
   return(outrast)
 }  
-
+## MakeDonut ------------
+#' Used within GetMetrics.
+#'
+#' @description Creates a matrix whose outer size matches the dimension of the image to be summarized (in this case, an airphoto image covering exactly one landsat pixel)
+#'
+#' @export
+#'
+#' @param zr Radii for nested circles
+#' @param res1 output resolution (full size indicated by the output matrix)
+#' @param fact1 resolution of imagery to be summarized
+#' @seealso \code{\link{GetMetrics}}
+#' @return matrix with integers that is used for extracting zonal summaries of fft spectrum.
+#'
 MakeDonut<-function(zr,res1,fact1){
   d<-do.call(c,lapply(zr,function(r,res2 = res1,f2= fact1){
     size <- f2*res2
@@ -103,7 +142,18 @@ MakeDonut<-function(zr,res1,fact1){
   d<-matrix(c(d[]),nrow = fact1)
   d
 }
-
+## MakePCA ------------
+#' Perform principal components analysis to help reduce dimensionality of a multiband image.
+#'
+#' @description Creates a matrix whose outer size matches the dimension of the image to be summarized (in this case, an airphoto image covering exactly one landsat pixel)
+#'
+#' @export
+#'
+#' @param r multiband rast image.
+#' @param sampdens sampling density for building PCA
+#' @param maxsample maximum number of samples to draw from image.
+#' @return multiband raster containing pca axis scores.
+#'
 MakePCA<-function(r,sampdens = 50,maxsample = 100000){
   samp<-spatSample(r,size = min(maxsample,ncell(r)/sampdens))
   samp<-samp[apply(samp,1,function(x){!any(is.na(x))}),]
@@ -113,6 +163,19 @@ MakePCA<-function(r,sampdens = 50,maxsample = 100000){
   pcamap
 }
 
+## CorrectLayers ------------
+#' Adjusts imagery to reduce artifacts associated with flightlines, and phenology inconsistencies.
+#'
+#' @description Corrects image artifacts based on seamlines, image dates in airphoto metadata polygons.  Alternate sources of imagery corrections could be used.
+#'
+#' @export
+#'
+#' @param y raster object created from seamlines, containing two layers, one describing distance from seamline, the other indicating image date.
+#' @param x raster to be corrected
+#' @param maxsample maximum pixels to be sampled for corrective model
+#' @param sampdens sampling density to be sampled for corrective model.
+#' @return multiband raster containing layers adjusted according to information associated with image acquisition date, and also distance to seamline (note: flightline distance would be better, but not currently available)
+#'
 CorrectLayers<-function(y,x,maxsample= 100000 ,sampdens = 50){
   names(x)<-c("x1","x2")
   cat("masking\r")
@@ -132,16 +195,29 @@ CorrectLayers<-function(y,x,maxsample= 100000 ,sampdens = 50){
   })
   rast(outrastl)
 }
-
+## ScoreNoise ------------
+#' Extracts fourier summary of image, returns estimate of how much image variability is at a pixel-to-pixel scale (a.k.a. noise)
+#'
+#' @description Extracts fourier summary of image, returns estimate of how much image variability is at a pixel-to-pixel scale (a.k.a. noise)
+#'
+#' @export
+#'
+#' @param y rast object
+#' @param f1 resolution to extract sub-images for fourier analysis.  256 currently used for efficiency
+#' @param f2 secondary resolution for summarizing fourier spectrum. Set to 64 for computational efficiency.
+#' @param q if set to T, R will print out images as it scores noise for the large image tiles.
+#' @param scorefun specifies how variability in noise scores for tiled fft summaries will be stored
+#' @param return.rast if set to T, function returns the image of noise scores with a large pixel size (aggregate of original image to to f1)
+#' @return statistics describing the proportion of image variation at very small scales.
+#'
 ScoreNoise<-function(y,f1 = 256,f2 = 64, q = T,
                      scorefun = function(x, q = c(.05,.1,.5,.9,.95)){quantile(x,q,na.rm = T)},
                      return.rast = F){
   ## power of two block size may run faster.
   ## odd-sized images are 'neat'?
-  ## Considered: use fft on histogram-equalized stretch? - doesn't make a huge difference
   ## Note: edge effects -- impacts on high frequency detections (function wraps image). Consider adjusting later?
   ## Note: sharp boundaries in original image will contribute to high frequencies detected.
-  ## Note: feeding this to a cluster layer-by-layer is faster than using a multicore call to aggregate function.#, cores = 1 
+  ## Note: feeding this function to a cluster within a wrapper, with one image per core is faster than using a multicore call to aggregate function.#, cores = 1 
 
   if(is.character(y)){y<-terra::rast(y)}
   d1<-terra::rast(MakeDonut(zr =c(f1/10,f1)*terra::res(y)[1],res1 = terra::res(y)[1],fact1 = f1))## 2-pixel radius.
@@ -183,7 +259,19 @@ ScoreNoise<-function(y,f1 = 256,f2 = 64, q = T,
      else return(apply(tmp,2,scorefun))
   }
 }
-
+## ScoreArtifacts ------------
+#' Extracts fourier summary of image, returns estimate of how much image variability is at a pixel-to-pixel scale (a.k.a. noise)
+#'
+#' @description Extracts fourier summary of image, returns estimate of how much image variability is at a pixel-to-pixel scale (a.k.a. noise)
+#'
+#' @export
+#'
+#' @param x rast object
+#' @param y rast object containing layers that may indicate artifacts in teh imagery (e.g., flightlines, or phenology blocks)
+#' @param maxsample maximum pixels to sample
+#' @param sampdens density to sample pixels (up to maxsample)
+#' @return list of linear models describing correlations between x and y.
+#'
 ScoreArtifacts<-function(y,x,maxsample= 100000 ,sampdens = 50){
   mat1<-spatSample(c(x,y),size = min(maxsample,ncell(y)/sampdens))
   mat1<-mat1[apply(mat1,1,function(x){!any(is.na(x))}),]
@@ -202,7 +290,16 @@ ScoreArtifacts<-function(y,x,maxsample= 100000 ,sampdens = 50){
   })
   
 }
-
+## ViewStackRGB ------------
+#' Useful for viewing multi-band images in rgb space.  Groups bands 1:3, 4:6, ... through the number of layers in the input raster.
+#'
+#' @description Extracts fourier summary of image, returns estimate of how much image variability is at a pixel-to-pixel scale (a.k.a. noise)
+#'
+#' @export
+#'
+#' @param x rast object
+#' @return returns NULL.  Used for plotting
+#'
 ViewStackRGB<-function(x){
   vec<-sort(rep(1:(ceiling(dim(x)[3]/3)),length.out = dim(x)[3]))
   vec<-split(names(x),vec);names(vec)<-sapply(vec,function(z){paste(z,collapse = "_")})
@@ -219,4 +316,5 @@ ViewStackRGB<-function(x){
     }
     readline(tsy)
   })
+  return(NULL)
 }
