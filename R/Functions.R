@@ -11,17 +11,160 @@
 #' @param quiet set to F if more intermediate messaging is wanted.
 #' @return Terra vect object containing airphoto extents, either as a single object, or as a list of extents.
 #'
-GetFootprints<-function(imglist,outcrs = NULL,return.as.list = F, quiet = T){
+GetFootprints<-function(imglist,outcrs = NULL,return.as.list = T, quiet = F){
   if(is.character(imglist)){
     if(is.null(outcrs)){outcrs<-crs(rast(imglist[1]))}
-    el<-pbapply::pblapply(imglist,function(x){if(!quiet){cat("\r",x)};r<-terra::rast(x);e<-terra::vect(terra::ext(r),crs = crs(r));project(e,outcrs)})
+    el<-pbapply::pblapply(imglist,function(x){if(!quiet){cat("\r",x,"           ")};r<-terra::rast(x);e<-terra::vect(terra::ext(r),crs = crs(r));project(e,outcrs)})
   }else if ("SpatRaster" %in% class(imglist[[1]])){
     if(is.null(outcrs)){outcrs<-crs(imglist[1])}
-    el<-pbapply::pblapply(imglist,function(r){e<-vect(ext(r),crs = crs(r));e;project(e,outcrs)})
+    el<-pbapply::pblapply(imglist,function(r){cat(r,"     \r");e<-vect(ext(r),crs = crs(r));e;project(e,outcrs)})
   }
-  if(!return.as.list)el<-vect(el)
-  
+  if(!return.as.list)vect(el)
   el
+}
+## CopyImages ---------------
+#' Copies raw airphotos to 0_raw local directory for further processing.
+#' @description Copies raw airphotos to 0_raw local directory for further processing.
+#' @param x full path to images (full path).
+#' @param outdir local directory to store image copy
+#' @return NULL
+
+CopyImage<-function(x,outdir = "0_raw"){
+  fn<-strsplit(x,split = "/")[[1]];fn<-fn[length(fn)]
+  outfile<-paste(outdir,fn,sep = "/")
+  if(!exists(outfile))file.copy(x,outfile)
+  return(NULL)
+}
+## GetBandIndices ------------
+#' Copies source airphotos to intermediate directory, calculates extra indices to add to image. Resolution unchanged.
+#'
+#' @description Copies source airphotos to intermediate directory, calculates extra indices to add to image. Resolution unchanged.
+#'
+#' @export
+#'
+#' @param filelist character vector with tif image names. If full path not included, GetMetrics will assume that files are in 0_raw folder.
+#' @param indfuns file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)
+#' @return filepaths pointing to single-band rasters nested in subfolders inside 1_intermediate. 
+#'
+GetBandIndices<-function(filelist,indfuns = indexFuns){
+  require(snowfall)
+  sfInit(parallel = T, cpus = 4)
+  sfLibrary(terra)
+  sfExport("indfuns")
+  indices<-pbapply::pblapply(filelist,function(y,fl){GetMetrics1(y,fl = indfuns,parallel = T)})
+  indices
+}
+## GetMetrics1 ------------
+#' Calculates indices from RBGN. Resolution unchanged. internal for GetBandIndices
+#'
+#' @description Copies source airphotos to intermediate directory, calculates extra indices to add to image. Resolution unchanged.
+#'
+#'
+#' @param rasterfile character vector with tif image names. If full path not included, GetMetrics will assume that files are in 0_raw folder.
+#' @param outpath file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)
+#' @return multiband raster with ndvi, ndgr, ndng, brightness.
+#'
+GetMetrics1<-function(rasterfile,outpath = "1_intermediate",fl = indexFuns,parallel = F){
+  require(terra)
+  cat("\n",rasterfile,"\n")
+  
+  nm<-names(fl);names(nm)<-nm
+  if(parallel){
+     sfExport("rasterfile")
+        gc()
+        indlist<-sfLapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,myfun)})
+        gc()
+  }else{
+    gc()
+    indlist<-lapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,myfun)})
+    gc()
+  }                               
+      indlist
+  
+  
+}  
+
+
+
+## GetFullResImage ------------
+#' internal.
+#'
+#' @description internal.
+#'
+#'
+#'
+GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","bri"),rawpath = "0_raw",indpaths = paste("1_intermediate/",c("ndvi","ndng","ndgr","bri"),sep = "")){
+  raw<-data.frame(Path = paste(rawpath,fn,sep = "/"),Band =c(1:4));rownames(raw)<-c("r","g","b","n")
+  ind<-data.frame(Path = paste(indpaths,fn,sep = "/"),Band = 1);rownames(ind)<-c("ndvi","ndng","ndgr","bri")
+  df<-rbind(raw,ind)
+  df[subset1,c("Path","Band")]
+}
+## GetAFFT ------------
+#' Generate metrics aggregating information from full-res images to coarser resolution.
+#'
+#' @description Generate metrics aggregating information from full-res images to coarser resolution.
+#'
+#' @export
+#'
+#' @param r tif image name
+#' @param zradii radii for summarizing fft-related statistics.
+#' @param outres resolution of output raster
+#' @return raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
+#'
+GetAFFT<-function(filelist,zradii =c(3,8,56),outres = 30){
+  require(snowfall)
+  r0<-rast(paste("0_raw/",filelist[1],sep = ""))
+  res1<-res(r0)[1]
+  fact1<-outres/res1
+  
+  donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
+  sfInit(7,parallel = T)
+  sfLibrary(gsignal)
+  sfLibrary(terra)
+  
+  
+  sfExport("fact1",local = T)
+  sfExport("donut",local = T)
+  affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut)})
+  
+  sfStop()
+  affts
+}
+
+GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ){
+  rl<-GetFullResImageList(r)
+  nm<-rownames(rl);names(nm)<-nm
+  sfExport("rl")
+  ol<-sfLapply(nm,function(x,f1=fact1){
+    terraOptions(memfrac = 1/7.01,datatype = "INT1U")
+    r1<-rast(rl[x,1])
+    r1<-terra::subset(r1,rl[x,2])
+    
+    outrast<-aggregate(r1,fact = f1,
+                   fun = function(x,zm1=donut){
+                     if(!any(is.na(x))){
+                       x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
+                       ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
+                       y<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
+                       y2<-c(mean(x),quantile(x,c(.025,.5,.95)))
+                       y3<-c(sd(x))
+                       y4<-log(moments::skewness(c(x))+10) * 50
+                       y5<-log(moments::kurtosis(c(x)))*10
+                       outvec<-round(c(y,y2,y3,y4,y5),0)
+                       
+                     }else{
+                       outvec<-rep(NA,(length(unique(zm1))+7))
+                     }
+                     outvec
+                   })
+    names(outrast)<-c(paste("f-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
+    writeRaster(outrast,filename = paste("2_aggregated/",x,"/",r,sep = ""),datatype = "INT1U")
+    rm(list =c("outrast","r1"))
+    gc()
+    return(x)
+  })
+  
+  ol
 }
 
 ## GetMetrics ------------
@@ -41,9 +184,11 @@ GetFootprints<-function(imglist,outcrs = NULL,return.as.list = F, quiet = T){
 #' @return multiband raster
 #'
 GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggregated", outres = 30,ncpus = 3,zradii = c(3,6,10,20,40,55)){
+  require(terra)
   if(!grepl("/",rasterfile)){rasterfile<-paste("0_raw/",rasterfile,sep = "")}
   fn<-strsplit(rasterfile,split = "/")[[1]];fn<-fn[length(fn)]
-  outfile<-paste(outpath1,paste("afft_",fn,sep = ""),sep = "/")
+  intfile<-paste(outpath1,fn,sep = "/")
+  outfile<-paste(outpath2,paste("afft_",fn,sep = ""),sep = "/")
   if(file.exists(outfile)){
     outrast<-rast(outfile)
     res1<-res(rast(rasterfile))[1]
@@ -56,46 +201,54 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
       file.copy(rasterfile,paste(outpath1,"/temp.tif",sep = ""))
       r1<-rast(paste(outpath1,"/temp.tif",sep = ""));names(r1)<-c("r","g","b","n")
       cat("  making NDVI")
-        num<-subset(r1,4)- subset(r1,1)
-        denom<-subset(r1,4)+ subset(r1,1)
+        num<-(r1$n - r1$r)
+        denom<-(r1$n + r1$r)
         ndvi<-num/denom
       cat("  making NDGR")
-        num<-subset(r1,2)- subset(r1,1)
-        denom<-subset(r1,2)+ subset(r1,1)
+        num<-(r1$g - r1$r)
+        denom<-(r1$g + r1$r)
         ndgr<-num/denom
       cat("  making NDNG")
-        num<-subset(r1,4)- subset(r1,2)
-        denom<-subset(r1,4)+ subset(r1,2)
+        num<-(r1$n - r1$g)
+        denom<-(r1$n + r1$g)
         ndng<-num/denom
       
       cat("  stretching Indices")
         nd<-c(ndvi,ndgr,ndng)
         nd<-stretch(nd,smin = -1, smax = 1)
+        names(nd)<-c("ndvi","ndgr","ndng")
         
       cat("  making brightness")
        br<-sum(r1)#app(r1,sum)
        br<-stretch(br, smin = 0, smax = 1020)
-      #r1<-c(r1,ndvi= stretch(ndvi,smin = -1, smax = 1),ndgr=stretch(ndgr,smin = -1, smax = 1),ndng = stretch(ndng,smin = -1, smax = 1),br<-stretch(br, smin = 0, smax = 1020))
-      r1<-c(r1,nd,br)
-      names(r1)<-c("r","g","n","ndvi","ndgr","ndng","bri")# "b",
+      r1<-c(r1,nd,br)  
+      names(r1)<-c("r","g","b","n","ndvi","ndgr","ndng","bri")
+      r1<-terra::subset(r1,c("r","g","n","ndvi","ndgr","ndng","bri"))#,"b" removed
+      
+      r1<-writeRaster(r1,filename = intfile,overwrite = T)
       r1
-#      r1<-writeRaster(r1,filename = paste(outpath1,"/temp.tif",sep = ""),overwrite = T)
     })[[3]]/60)
     fact1<-outres/res(r1)[1]
     donut<-round(c(MakeDonut(zradii,res1 = res(r1)[1],fact1)),2)
     cat("  \n  Elapsed Time 2:",system.time({
-      outrast<-aggregate(r1,fact = fact1,cores = ncpus,filename = outfile,zm1 = donut,
+      names1<-paste("f",xfun::numbers_to_words(ceiling(unique(donut))),letters[1:length(unique(donut))],sep = "_")
+      names2<-c("mean","Q05","Q10","med","Q90","Q95","sdX10","skewX10","kurtX100")
+      bandnames<-c("r","g","n","ndvi","ndgr","ndng","bri")
+      basenames<- c(names1,names2)
+      nms<-do.call(c,lapply(bandnames,function(x){paste(x,basenames,sep = "_")}))
+      
+      outrast<-aggregate(r1,fact = fact1,cores = ncpus,zm1 = donut,
                          fun = function(x,zm1 = donut){
                            if(!any(is.na(x))){
                              x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
                              ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
                              y<-tapply(ff1,zm1,sum)/sum(ff1)
                              y2<-c(mean(x),
-                                   quantile(x,c(0,.1,.5,.9,1)),
+                                   quantile(x,c(.05,.1,.5,.9,.95)),
                                    sd(x)*10,
                                    (moments::skewness(c(x))+10)*10,
                                    log((moments::kurtosis(c(x))))*100)
-                             outvec<-round(c(y*100,y2),0)
+                             outvec<-round(c(y*1000,y2*100),0)
                            }else{
                              outvec<-rep(NA,(length(unique(zm1))+9))
                            }
@@ -104,15 +257,12 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
                          })
       
     })[[3]]/60,"\n")
+    names(outrast)<-nms
+    writeRaster(outrast,filename = outfile,datatype = "INT2U")
     beepr::beep(10)
   }
-  names1<-paste("f",xfun::numbers_to_words(ceiling(unique(donut))),letters[1:length(unique(donut))],sep = "_")
-  names2<-c("mean","min","Q10","med","Q90","max","sd10","skew_p10t10","kurt_lt100")
-  
-  basenames<- c(names1,names2)
-  nms<-   paste(c("r","g","b","n","ndvi","bri"),rep(basenames,each = 6),sep = "_")
   names(outrast)<-nms
-  file.remove(paste(outpath,"/temp.tif",sep = ""))
+  file.remove(paste(outpath1,"/temp.tif",sep = ""))
   return(outrast)
 }  
 ## MakeDonut ------------
@@ -126,7 +276,7 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
 #' @param res1 output resolution (full size indicated by the output matrix)
 #' @param fact1 resolution of imagery to be summarized
 #' @seealso \code{\link{GetMetrics}}
-#' @return matrix with integers that is used for extracting zonal summaries of fft spectrum.
+#' @return matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
 #'
 MakeDonut<-function(zr,res1,fact1){
   d<-do.call(c,lapply(zr,function(r,res2 = res1,f2= fact1){
@@ -142,6 +292,79 @@ MakeDonut<-function(zr,res1,fact1){
   d<-matrix(c(d[]),nrow = fact1)
   d
 }
+## MergeAggregatedAirphotos ------------
+#' Used after GetMetrics.
+#'
+#' @description merges tiles in tiflist, one tif per band in the tiles.
+#'
+#' @export
+#'
+#' @param tiflist list of files to merge
+#' @param outpath2 file path to folder where output of this function should be stored (usually same directory as tiflist).
+#' @return list of images. Mostly called to generate images that are easy to read in and work with later.
+#'
+MergeAggregatedAirphotos<-function(tiflist,outpath2 = outpath2){
+  ## Consider allowing terra to use more RAM?  How to do this?
+  ## Handling of names in GetMetrics may require revisions in this function.
+  mergefun<-function(x,tfn,tmplist = tmp,outpath.cur = outpath2){
+    tmpfile<-paste(outpath.cur,tfn,x,".tif",sep = "")
+    if(file.exists(tmpfile)){
+      return(tmpfile)
+    }else{
+      y<-vrt(tmp[[x]],paste(outpath.cur,"/tmp",sep = ""),return_filename = T,overwrite = T)
+      y<-rast(y)
+      y<-writeRaster(y,tmpfile)
+      return(sources(y))
+    }
+    
+  }
+  tmp<-reshape2::colsplit(names(tiflist),"_",c(letters[1:8]))
+  tmp<-split(tiflist,tmp$c)
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge1\n")
+  m1<-do.call(c,pbapply::pblapply(nm,mergefun,tfn = "/m1_"))
+  
+  tmp<-split(m1,substr(names(m1),1,nchar(names(m1))-1))
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge2\n")
+  m2<-do.call(c,pbapply::pblapply(nm,mergefun,tfn = "/m2_"))
+  
+  tmp<-split(m2,substr(names(m2),1,nchar(names(m2))-1))
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge3\n")
+  m3<-do.call(c,pbapply::pblapply(nm,mergefun,tfn = "/m3_"))
+  
+  tmp<-split(m3,substr(names(m3),1,nchar(names(m3))-2))
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge4\n")
+  m4<-do.call(c,pbapply::pblapply(nm,mergefun,tfn = "/m4_"))
+  
+  ### at a certain stage, consider: merging individual layers may well be a more sensible 
+  ## operation than merging the whole dang thing. 
+  
+  
+  # y<-vrt(m4,paste(outpath2,"/tmp",sep = ""),return_filename = T,overwrite = T)
+  # y<-rast(y)
+  bandnames<-c("r", "g","n","ndgr","ndng","ndvi","bri" )
+  statnames<-c("f-one-a","f-one-b","f-two-c","f-three-d","f-five-e","mean","min","Q10","med","Q90","max", "sdx10","skewx10","kurtx100")
+  nms4<-do.call(c,lapply(statnames,function(x){paste(x,bandnames,sep = "_")}))
+  names(y)<-nms4
+  names(nms4)<-nms4
+  if(length(nms4)!=dim(rast(m4[1]))[3]){print("STOP - names and number of bands do not match!");browser()}
+  q<-pbapply::pblapply(nms4,function(x){
+    cl<-sprc(lapply(m4,function(z){subset(rast(z),which(nms4==x))}))
+    outlayer<-merge(cl,filename = paste(outpath2,"/AFFT_Initial_",x,".tif",sep = ""),overwrite = T)
+  })
+  
+  
+  
+  ## cleanup interrim files
+  interrim.files<-c(m1,m2,m3,m4)
+  rm1<-sapply(interrim.files,file.remove)
+  
+  return(y)  
+}
+
 ## MakePCA ------------
 #' Perform principal components analysis to help reduce dimensionality of a multiband image.
 #'
@@ -302,8 +525,8 @@ ScoreArtifacts<-function(y,x,maxsample= 100000 ,sampdens = 50){
 #'
 ViewStackRGB<-function(x){
   vec<-sort(rep(1:(ceiling(dim(x)[3]/3)),length.out = dim(x)[3]))
-  vec<-split(names(x),vec);names(vec)<-sapply(vec,function(z){paste(z,collapse = "_")})
-  
+  #vec<-split(names(x),vec);names(vec)<-sapply(vec,function(z){paste(z,collapse = "_")})
+  vec<-split(1:length(names(x)),vec)
   sapply(vec,function(y){
     tsy<-paste(y,collapse = "_")
     if(length(y)==3){
@@ -318,3 +541,54 @@ ViewStackRGB<-function(x){
   })
   return(NULL)
 }
+## indexFuns ------------
+#' functions for tallying indices on raw airphotos. pass this object (or revised indices) to cluster with sfExport.
+#'
+#' @description List of functions for tallying indices on raw airphotos. pass this object (or revised indices) to cluster with sfExport.
+#'
+
+
+indexFuns<-list(
+  ndvi = function(r,outpath_i){
+    fn<-gsub("0_raw/",paste("1_intermediate/","ndvi/",sep = ""),r)
+    r<-terra::rast(r)
+    names(r)<-c("r","g","b","n")
+    y<-as.int(  ((  (r$n-r$r)/(r$n+r$r)  )+1) *126  )
+    writeRaster(y,filename = fn, datatype = "INT1U")
+    rm(list = c("r","y","z"))
+    
+    gc()
+    fn},
+  ndgr = function(r,outpath_i){
+    fn<-gsub("0_raw/",paste("1_intermediate/","ndgr/",sep = ""),r)
+    r<-terra::rast(r)
+    names(r)<-c("r","g","b","n")
+    y<-as.int(  ((  (r$g-r$r)/(r$g+r$r)  )+1) *126  )
+    z<-writeRaster(y,filename = fn, datatype = "INT1U")
+    rm(list = c("r","y","z"))
+    
+    gc()
+    fn
+    
+  },
+  ndng = function(r,outpath_i){
+    fn<-gsub("0_raw/",paste("1_intermediate/","ndng/",sep = ""),r)
+    r<-terra::rast(r)
+    names(r)<-c("r","g","b","n")
+    y<-as.int(  ((  (r$n-r$g)/(r$n+r$g)  )+1) *126  )
+    z<-writeRaster(y,filename = fn, datatype = "INT1U")
+    rm(list = c("r","y","z"))
+    gc()
+    fn
+  },
+  bri = function(r,outpath_i){
+    fn<-gsub("0_raw/",paste("1_intermediate/","bri/",sep = ""),r)
+    r<-terra::rast(r)
+    names(r)<-c("r","g","b","n")
+    y<-as.int(sum(r)/4)
+    z<-writeRaster(y,filename = fn, datatype = "INT1U")
+    rm(list = c("r","y","z"))
+    gc()
+    
+    fn}
+)
