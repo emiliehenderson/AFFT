@@ -4,7 +4,7 @@
 \alias{GetFootprints}
 \title{Grabs extents from all airphotos imglist.}
 \usage{
-GetFootprints(imglist, outcrs = NULL, return.as.list = F, quiet = T)
+GetFootprints(imglist, outcrs = NULL, return.as.list = T, quiet = F)
 }
 \arguments{
 \item{imglist}{list of airphotos (text, full paths, with names)}

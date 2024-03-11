@@ -14,7 +14,7 @@ MakeDonut(zr, res1, fact1)
 \item{fact1}{resolution of imagery to be summarized}
 }
 \value{
-matrix with integers that is used for extracting zonal summaries of fft spectrum.
+matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
 }
 \description{
 Creates a matrix whose outer size matches the dimension of the image to be summarized (in this case, an airphoto image covering exactly one landsat pixel)
