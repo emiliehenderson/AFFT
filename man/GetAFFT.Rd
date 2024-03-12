@@ -4,14 +4,19 @@
 \alias{GetAFFT}
 \title{Generate metrics aggregating information from full-res images to coarser resolution.}
 \usage{
-GetAFFT(r, zradii = c(2, 6, 56), outres = 30)
+GetAFFT(
+  filelist,
+  zradii = c(0.75, 1.25, 2.5, 5, 10, 60),
+  outres = 30,
+  overwrite = T
+)
 }
 \arguments{
-\item{r}{tif image name}
-
 \item{zradii}{radii for summarizing fft-related statistics.}
 
 \item{outres}{resolution of output raster}
+
+\item{r}{tif image name}
 }
 \value{
 raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.

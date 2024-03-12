@@ -25,6 +25,7 @@ GetFootprints<-function(imglist,outcrs = NULL,return.as.list = T, quiet = F){
 ## CopyImages ---------------
 #' Copies raw airphotos to 0_raw local directory for further processing.
 #' @description Copies raw airphotos to 0_raw local directory for further processing.
+#' @export
 #' @param x full path to images (full path).
 #' @param outdir local directory to store image copy
 #' @return NULL
