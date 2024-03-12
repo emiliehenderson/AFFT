@@ -541,6 +541,24 @@ ViewStackRGB<-function(x){
   })
   return(NULL)
 }
+
+## pause -----------------
+#'
+#' function for introducing a brief pause into a script
+#' @description pauses R's operation 
+#' 
+#' @export
+#' 
+#' @param secs seconds for pause
+#' @return NULL
+#'
+
+pause<-function(secs){
+  st<-Sys.time()
+  while(abs(difftime(st,Sys.time(),units = "secs"))<secs){}
+  return(NULL)
+}
+
 ## indexFuns ------------
 #' functions for tallying indices on raw airphotos. pass this object (or revised indices) to cluster with sfExport.
 #'

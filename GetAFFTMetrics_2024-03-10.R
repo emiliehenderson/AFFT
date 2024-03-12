@@ -27,20 +27,26 @@ lastind<-length(aggfiles)
 aggfiles<-list.files("2_aggregated/ndvi",
                      pattern = ".tif",full.names = F)
 
-junk<-lapply(aggfiles[lastind:length(aggfiles)],function(x){
+junk<-lapply(aggfiles[lastind:length(aggfiles)],function(x,p = 2){
   r0<-rast(paste("0_raw",x,sep = "/"))
   r2<-rast(paste("1_intermediate",band,x,sep = "/"))
   r3<-rast(paste("2_aggregated",band,x,sep = "/"))
-  #plot(subset(r3,1:6), range =c(0,255),col = cols)
-  par(mfrow =c(2,3))
-  #r4<-app(r3,function(x){c(x[1],x[2],sum(x[3:4]))/sum(x[1:4])*255})
-  r4<-subset(r3,1:3+2)
-  plotRGB(r4)
-  plotRGB(r4,stretch = "lin")
-  plotRGB(r4,stretch = "hist")
-  plotRGB(r0)#,stretch = 'lin')
-  plotRGB(c(r2,r2,r2),stretch = "lin")
-  plotRGB(c(r3$mean,r3$mean,r3$mean),stretch = "lin")
+  if(p==2){
+        par(mfrow =c(2,2))
+   # r4<-app(r3,function(x){c(x[1],x[2],sum(x[3:4]))/sum(x[1:4])*255})
+    r4<-subset(r3,1:3+2)
+  
+    e1<-ext(r4)/5
+    plotRGB(r4,ext = e1,smooth = F,stretch = "lin")
+    plotRGB(c(r2,r2,r2),stretch = "lin",ext = e1,smooth = F)
+    #plotRGB(r4,ext = e1)
+    #plotRGB(r4,stretch = "hist",ext = e1)
+    plotRGB(c(r3$mean,r3$mean,r3$mean),stretch = "lin",ext = e1,smooth = F)
+    plotRGB(r0,ext = e1,smooth = F)#,stretch = 'lin')
+  }else if (p==1){
+    plot(subset(r3,1:6), range =c(0,255),col = cols,smooth = F)
+  }
+
   readline(paste(which(aggfiles==x),"out of",length(aggfiles)))
   })
 
