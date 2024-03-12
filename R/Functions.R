@@ -111,7 +111,7 @@ GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","b
 #' @param outres resolution of output raster
 #' @return raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
 #'
-GetAFFT<-function(filelist,zradii =c(3,8,56),outres = 30){
+GetAFFT<-function(filelist,zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,overwrite = T){
   require(snowfall)
   r0<-rast(paste("0_raw/",filelist[1],sep = ""))
   res1<-res(r0)[1]
@@ -131,7 +131,7 @@ GetAFFT<-function(filelist,zradii =c(3,8,56),outres = 30){
   affts
 }
 
-GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ){
+GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T){
   rl<-GetFullResImageList(r)
   nm<-rownames(rl);names(nm)<-nm
   sfExport("rl")
@@ -158,7 +158,7 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ){
                      outvec
                    })
     names(outrast)<-c(paste("f-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
-    writeRaster(outrast,filename = paste("2_aggregated/",x,"/",r,sep = ""),datatype = "INT1U")
+    writeRaster(outrast,filename = paste("2_aggregated/",x,"/",r,sep = ""),datatype = "INT1U",overwrite = overwrite)
     rm(list =c("outrast","r1"))
     gc()
     return(x)

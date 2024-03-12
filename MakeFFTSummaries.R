@@ -1,64 +1,75 @@
-source("Code/Functions.R")
-  
-## RunCode ------------------
-  library(terra)
+## Setup ------------------
+  library(terra);library(AFFT)
   ci<-NULL
-  airpath<-"0_raw"
+  airpath0<-"J:/airphoto/WY_NAIP/WY_NAIP2019_4band/naip2019_wy/geotiff"
+  airpath_local<-"0_raw"
   outpath1<-"1_intermediate"
   outpath2<-"2_aggregated"
-  
+  outpath3<-"3_corrected"
+  outpath4<-"4_PCA"
 ## Get tile footprints ---------
-    fl1<-paste(airpath,list.files(airpath),sep = "/")
-    nm1<-sapply(fl1,function(x){gsub(".tif","",strsplit(x,"/")[[1]][5])})
-    names(fl1)<-nm1
-    if(is.null(ci)){ci<-1:length(fl1)}else{ci<-1:ci}
-    fp1<-GetFootprints(fl1[ci])
-    fp2<-GetFootprints(fl1[ci],crs(rast(fl1[1])),T)
-    names(fp2)<-nm1[ci]
+    fl1<-paste(airpath0,list.files(airpath0),sep = "/")
+    if(!all(substr(fl1,nchar(fl1)-2,nchar(fl1))=="tif")){
+      #if(readline("explore subfolers?")%in% "y"){
+        fl2<-do.call(c,lapply(fl1,function(x){y<-paste(x,list.files(x),sep = "/")
+          if(!all(grepl("tif",y))){
+            if(length(y)==1){z<-paste(y,list.files(y),sep = "/")
+            }else{z<-lapply(y,function(p){paste(p,list.files(p),sep = "/")
+              
+              })
+            }
+            return(z)
+          }else{return(y)}
+        }))
+        fl3<-do.call(c,pbapply::pblapply(fl2,function(x){paste(x,list.files(x),sep = "/")}))
+        
+      #}
+    }
+    df<-reshape2::colsplit(fl3,"/",c("a","b","c","d","e","f","g","h","i"))
+    df<-data.frame(df,filepath = fl3)
+    df$Name<-gsub(".tif","",df$i)
+    fl4<-df$filepath;names(fl4)<-df$Name
+    fl4<-fl4[substr(fl4,nchar(fl4)-2,nchar(fl4)) =="tif"]
+    ## note: There's a hidden subfolder or two in here. perhaps it's not one I need?
+## Select model region to work on -------------------
+    
+    if(is.null(ci)){ci<-1:length(fl4)}else{ci<-1:ci}
+    fp1<-GetFootprints(fl4[ci],quiet = T)
+    save(fp1,file = "1_intermediate/fp1.RData")
+    #fp2<-GetFootprints(fl4[ci],crs(rast(fl1[1])),T)
+    #names(fp1)<-names(fl4)[ci]
+    
+    #names(fp2)<-nm1[ci]
     
     statebnd <- vect("J:/R4VegMapping_Development/R4VegMapping/Data/Spatial/cb_2019_us_state_500k.shp")
-    ID<-statebnd[statebnd$NAME=="Idaho",]
-    ID<-project(ID,fp1)
-    plot(ID)
+    WY<-statebnd[statebnd$NAME=="Wyoming",]
+    WY<-project(WY,fp1[[1]])
+    plot(WY)
     
     bnd<-vect("J:/support/r4_mappingsections_final.shp")
-    bnd<-project(bnd,fp1)
+    bnd<-project(bnd,fp1[[1]])
     
-    plot(bnd)
-    text(bnd,bnd$ColumnName)
-    plot(fp1, border = "gray",add = T)
-    plot(ID, lwd = 2,add =T)
-
-    plot(fp1)
     plot(bnd,add = T)
-    text(bnd,bnd$ColumnName,col = "red",font = 2,cex = 3)
-    bnd<-bnd[bnd$ColumnName %in% "M332F",]
-    bnd1<-buffer(bnd,20000)
-  ## Select tiles to process ----------------
+    text(bnd,bnd$ColumnName)
+    plot(vect(fp1), border = "gray",add = T)
+    plot(WY, lwd = 2,add =T)
+
+    plot(vect(fp1),border = "lightgray")
+    plot(bnd,add = T,border = "royalblue",lwd = 2)
+    text(bnd,bnd$ColumnName,col = "red",font = 2,cex = 1)
+    bnd1<-bnd[bnd$ColumnName %in% "X342G",]
+    bnd1<-buffer(bnd1,20000)
+
+## Select tiles to process ----------------
     
-    {
-      windows(10,10)
-      plot(bnd1,border = "transparent")
-      plot(fp1, border = "gray",add = T)
-      plot(ID, lwd = 2,add =T)
-      fpz<-list.files(outpath)[grepl("m_",outpath)]
-      fpz<-GetFootprints(paste(outpath,fpz,sep = "/"))
-      plot(fpz,border = "royalblue",lwd = 3.5, ext = ext(fpz)*2)
-      plot(fp1,border = "gray",add = T)
-      e1<-draw()
-      plot(ID)
-      plot(fp1,border = "lightgray",lty = 2,add = T)
-      plot(e1,border = "red",add = T)
-      readline("pause")
-      dev.off()
-    }
-    plot(bnd, border = "darkgray");text(bnd,bnd$ColumnName)
-    plot(fp1, border = "gray",add = T)
-    plot(ID, lwd = 2,add =T)
-    plot(fpz,border = "royalblue",add = T,lwd = 3.5, ext = ext(fpz)*2)
+    plot(bnd1, border = "darkgray");text(bnd1,bnd1$ColumnName)
     
-    fp3<-do.call(c,pbapply::pblapply(nm1,function(x,ee = vect(e1)){
-      ey<-fp2[[x]]
+    plot(vect(fp1), border = "gray",add = T)
+    plot(WY, lwd = 2,add =T)
+    if(length(fpz)>0)plot(fpz,border = "royalblue",add = T,lwd = 3.5, ext = ext(fpz)*2)
+    nm1<-names(fp1);names(nm1)<-nm1
+    fp3<-do.call(c,pbapply::pblapply(nm1,function(x,ee = bnd1){
+      ey<-fp1[[x]]
       plot(ey,add = T,border = "skyblue2",lwd = 1)
       if(is.related(ey, ee, "intersects")){
         plot(ey,add = T, border = "green",lwd = 2)
@@ -67,11 +78,21 @@ source("Code/Functions.R")
     }))
 
   ## Calculate summaries and metrics over tiles @30m scale ------------------
-    done.files<-gsub(".tif","",list.files(outpath))
-    cat("\r tiles to fully process:",sum(!(fp3 %in% done.files)))
-    fp3<-fp3[!fp3 %in% done.files]
+    done.files1<-gsub(".tif","",list.files(outpath1))
     
-    imglist<-pbapply::pblapply(fl1[fp3],function(x){GetMetrics(x,outpath,ncpus = 15)})
+    cat("\r tiles to fully process:",sum(!(fp3 %in% done.files1)))
+    fp3<-fp3[!fp3 %in% done.files1]
+    #save(fp3,file = "1_intermediate/fp3.RData")
+    
+    tmp<-pbapply::pblapply(fl4[names(fp3)],function(x){CopyImage(x)})
+    
+    rawfiles<-list.files("0_raw",full.names = F)
+    indexfiles<-gsub("_Indices","",list.files("1_intermediate",full.names = F))
+    rawfiles<-rawfiles[!rawfiles %in% indexfiles]
+    rawfiles<-paste("0_raw",rawfiles,sep = "/")
+    indices<-pbapply::pblapply(rawfiles,function(x){GetMetrics1(x)})
+    
+    
     cfl<-paste(outpath,list.files(outpath),sep = "/")
     cfl<-cfl[grepl(".tif",cfl)]
     done.files<-lapply(lapply(cfl,rast),function(x,y = ID){
@@ -79,13 +100,15 @@ source("Code/Functions.R")
       x
     })
 
-    r1<-merge(sprc(done.files))
+      
     
   ## Correct flight line and phenology artifacts -----------------
-    r1<-list.files(outpath)
+    r1<-list.files(outpath2,full.names = T);names(r1)<-list.files(outpath2)
     r1<-r1[grepl("afft",r1)]
-    r1<-r1[order(as.numeric(substr(r1,5,6)))]
-    r1<-rast(paste(outpath,r1,sep = "/"))
+    
+
+    afft_init<-MergeAggregatedAirphotos(r1,outpath2 = outpath2)
+    afft_init<-rast(list.files(outpath2,full.names = T)[grepl("AFFT_Initial",list.files(outpath2))])
     sl<-vect("J:/ID_NAIP/suppl/Seamlines_id16_2019.shp")
     sl<-project(sl,ID)
     sl$JDate<-julian(as.Date(sl$IDATE),origin = as.Date("2019-01-01"))
