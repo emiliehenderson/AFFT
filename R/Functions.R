@@ -112,14 +112,14 @@ GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","b
 #' @param outres resolution of output raster
 #' @return raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
 #'
-GetAFFT<-function(filelist,zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,overwrite = T){
+GetAFFT<-function(filelist,zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,overwrite = T,ncpu = 7){
   require(snowfall)
   r0<-rast(paste("0_raw/",filelist[1],sep = ""))
   res1<-res(r0)[1]
   fact1<-outres/res1
   
   donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
-  sfInit(7,parallel = T)
+  sfInit(ncpu,parallel = T)
   sfLibrary(gsignal)
   sfLibrary(terra)
   
