@@ -136,7 +136,7 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T){
   rl<-GetFullResImageList(r)
   nm<-rownames(rl);names(nm)<-nm
   sfExport("rl")
-  ol<-lapply(nm,function(x,f1=fact1){
+  ol<-sfLapply(nm,function(x,f1=fact1){
     terraOptions(memfrac = 1/7.01,datatype = "INT4S")
     r1<-rast(rl[x,1])
     r1<-terra::subset(r1,rl[x,2])
