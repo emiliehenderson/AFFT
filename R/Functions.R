@@ -47,9 +47,9 @@ CopyImage<-function(x,outdir = "0_raw"){
 #' @param indfuns file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)
 #' @return filepaths pointing to single-band rasters nested in subfolders inside 1_intermediate. 
 #'
-GetBandIndices<-function(filelist,indfuns = indexFuns){
+GetBandIndices<-function(filelist,indfuns = indexFuns,ncpu = 4){
   require(snowfall)
-  sfInit(parallel = T, cpus = 4)
+  sfInit(parallel = T, cpus = ncpu)
   sfLibrary(terra)
   sfExport("indfuns")
   indices<-pbapply::pblapply(filelist,function(y,fl){GetMetrics1(y,fl = indfuns,parallel = T)})
@@ -126,18 +126,18 @@ GetAFFT<-function(filelist,zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,over
   
   sfExport("fact1",local = T)
   sfExport("donut",local = T)
-  affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut)})
+  affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut,overwrite,ncpu)})
   
   sfStop()
   affts
 }
 
-GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T){
+GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu){
   rl<-GetFullResImageList(r)
   nm<-rownames(rl);names(nm)<-nm
   sfExport("rl")
   ol<-sfLapply(nm,function(x,f1=fact1){
-    terraOptions(memfrac = 1/7.01,datatype = "FLT4S")
+    terraOptions(memfrac = 1/(ncpu * 1.02),datatype = "FLT4S")
     r1<-rast(rl[x,1])
     r1<-terra::subset(r1,rl[x,2])
     
