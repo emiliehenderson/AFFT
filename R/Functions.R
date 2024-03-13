@@ -136,8 +136,8 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T){
   rl<-GetFullResImageList(r)
   nm<-rownames(rl);names(nm)<-nm
   sfExport("rl")
-  ol<-sfLapply(nm,function(x,f1=fact1){
-    terraOptions(memfrac = 1/7.01,datatype = "FLT4S")
+  ol<-lapply(nm,function(x,f1=fact1){
+    terraOptions(memfrac = 1/7.01,datatype = "INT4S")
     r1<-rast(rl[x,1])
     r1<-terra::subset(r1,rl[x,2])
     
@@ -147,21 +147,21 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T){
                        x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
                        ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
                        #y<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
-                       y<-tapply(ff1,zm1,sum)
+                       y<-tapply(ff1,zm1,mean)
                        yb<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
                        y2<-c(mean(x),quantile(x,c(.025,.5,.95)))
                        y3<-c(sd(x))
                        y4<-log(moments::skewness(c(x))+10) * 50
-                       y5<-log(moments::kurtosis(c(x)))*10
+                       y5<-log(moments::kurtosis(c(x)))*100
                        outvec<-round(c(y,yb,y2,y3,y4,y5),0)
-                       
                      }else{
                        outvec<-rep(NA,(length(unique(zm1))*2+7))
                      }
                      outvec
                    })
-    names(outrast)<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
-    writeRaster(outrast,filename = paste("2_aggregated/",x,"/",r,sep = ""),datatype = "FLT4S",overwrite = overwrite)
+    nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
+    names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
+    writeRaster(outrast,filename = paste("2_aggregated/",x,"/",r,sep = ""),datatype = "INT4S",overwrite = overwrite)
     rm(list =c("outrast","r1"))
     gc()
     return(x)
