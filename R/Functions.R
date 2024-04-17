@@ -48,12 +48,18 @@ CopyImage<-function(x,outdir = "0_raw"){
 #' @return filepaths pointing to single-band rasters nested in subfolders inside 1_intermediate. 
 #'
 GetBandIndices<-function(filelist,indfuns = indexFuns,ncpu = 4){
-  require(snowfall)
-  sfInit(parallel = T, cpus = ncpu)
-  sfLibrary(terra)
-  sfExport("indfuns")
-  indices<-pbapply::pblapply(filelist,function(y,fl){GetMetrics1(y,fl = indfuns,parallel = T)})
-  indices
+  if(ncpu >1){
+    require(snowfall)
+    sfInit(parallel = T, cpus = ncpu)
+    sfLibrary(terra)
+    sfExport("indfuns")
+    indices<-pbapply::pblapply(filelist,function(y,fl){GetMetrics1(y,fl = indfuns,parallel = T)})
+    return(indices)
+  }else{
+    indices<-pbapply::pblapply(filelist,function(y,fl){GetMetrics1(y,fl = indfuns,parallel = F)})
+    return(indices)
+  }
+ 
 }
 ## GetMetrics1 ------------
 #' Calculates indices from RBGN. Resolution unchanged. internal for GetBandIndices
@@ -73,11 +79,11 @@ GetMetrics1<-function(rasterfile,outpath = "1_intermediate",fl = indexFuns,paral
   if(parallel){
      sfExport("rasterfile")
         gc()
-        indlist<-sfLapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,myfun)})
+        indlist<-sfLapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf)})
         gc()
   }else{
     gc()
-    indlist<-lapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,myfun)})
+    indlist<-lapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf)})
     gc()
   }                               
       indlist
@@ -94,9 +100,10 @@ GetMetrics1<-function(rasterfile,outpath = "1_intermediate",fl = indexFuns,paral
 #'
 #'
 #'
-GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","bri"),rawpath = "0_raw",indpaths = paste("1_intermediate/",c("ndvi","ndng","ndgr","bri"),sep = "")){
+GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","bri"),rawpath = "0_raw",indpath = "1_intermediate",indfolders =c("ndvi","ndng","ndgr","bri")){
+  fn<-strsplit(fn,"/")[[1]];fn<-fn[length(fn)]
   raw<-data.frame(Path = paste(rawpath,fn,sep = "/"),Band =c(1:4));rownames(raw)<-c("r","g","b","n")
-  ind<-data.frame(Path = paste(indpaths,fn,sep = "/"),Band = 1);rownames(ind)<-c("ndvi","ndng","ndgr","bri")
+  ind<-data.frame(Path = paste(indpath,indfolders,fn,sep = "/"),Band = 1);rownames(ind)<-c("ndvi","ndng","ndgr","bri")
   df<-rbind(raw,ind)
   df[subset1,c("Path","Band")]
 }
@@ -112,9 +119,13 @@ GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","b
 #' @param outres resolution of output raster
 #' @return raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
 #'
-GetAFFT<-function(filelist,zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,overwrite = T,ncpu = 7){
+GetAFFT<-function(filelist,
+                  zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,
+                  overwrite = T,ncpu = 7,
+                  rawpath = "0_raw",indpath = "1_intermediate",aggpath = "2_aggregated"){
   require(snowfall)
-  r0<-rast(paste("0_raw/",filelist[1],sep = ""))
+  fn<-strsplit(filelist[1],"/")[[1]];fn<-fn[length(fn)]
+  r0<-rast(paste(rawpath,fn,sep = "/"))
   res1<-res(r0)[1]
   fact1<-outres/res1
   
@@ -126,42 +137,46 @@ GetAFFT<-function(filelist,zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,over
   
   sfExport("fact1",local = T)
   sfExport("donut",local = T)
-  affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut,overwrite,ncpu)})
+  sfExport("rawpath",local = T)
+  sfExport("indpath",local = T)
+  sfExport("aggpath",local = T)
+  affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut,overwrite,ncpu,rawpath,indpath,aggpath)})
   
   sfStop()
   affts
 }
 
-GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu){
-  rl<-GetFullResImageList(r)
+GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu,rp = rawpath,ip = indpath,ap = aggpath){
+  rl<-GetFullResImageList(r,rawpath = rp, indpath = ip)
   nm<-rownames(rl);names(nm)<-nm
   sfExport("rl")
   ol<-sfLapply(nm,function(x,f1=fact1){
-  terraOptions(memfrac = 1/7.01,datatype = "INT4S")
+    terraOptions(memfrac = 1/7.01,datatype = "INT4S")
     r1<-rast(rl[x,1])
     r1<-terra::subset(r1,rl[x,2])
-    
+
     outrast<-aggregate(r1,fact = f1,
-                   fun = function(x,zm1=donut){
-                     if(!any(is.na(x))){
-                       x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
-                       ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
-                       #y<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
-                       y<-tapply(ff1,zm1,mean)
-                       yb<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
-                       y2<-c(mean(x),quantile(x,c(.025,.5,.95)))
-                       y3<-c(sd(x))
-                       y4<-log(moments::skewness(c(x))+10) * 50
-                       y5<-log(moments::kurtosis(c(x)))*100
-                       outvec<-round(c(y,yb,y2,y3,y4,y5),0)
-                     }else{
-                       outvec<-rep(NA,(length(unique(zm1))*2+7))
-                     }
-                     outvec
-                   })
+                  fun = function(x,zm1=donut){
+      if(!any(is.na(x))){
+        x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
+        ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
+        #y<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
+        y<-tapply(ff1,zm1,mean)
+        yb<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
+        y2<-c(mean(x),quantile(x,c(.025,.5,.95)))
+        y3<-c(sd(x))
+        y4<-log(moments::skewness(c(x))+10) * 50
+        y5<-log(moments::kurtosis(c(x)))*100
+        outvec<-round(c(y,yb,y2,y3,y4,y5),0)
+      }else{
+        outvec<-rep(NA,(length(unique(zm1))*2+7))
+      }
+      outvec
+    })
     nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
     names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
-    writeRaster(outrast,filename = paste("2_aggregated/",x,"/",r,sep = ""),datatype = "INT4S",overwrite = overwrite)
+    rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
+    writeRaster(outrast,filename = paste(ap,x,rn,sep = "/"),datatype = "INT4S",overwrite = overwrite)
     rm(list =c("outrast","r1"))
     gc()
     return(x)
@@ -570,46 +585,50 @@ pause<-function(secs){
 
 
 indexFuns<-list(
-  ndvi = function(r,outpath_i){
-    fn<-gsub("0_raw/",paste("1_intermediate/","ndvi/",sep = ""),r)
+  ndvi = function(r,outpath_i = getwd()){
+    fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
+    fn2<-paste(outpath_i,"/1_intermediate/ndvi/",fn,sep = "")
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$n-r$r)/(r$n+r$r)  )+1) *126  )
-    writeRaster(y,filename = fn, datatype = "INT1U")
-    rm(list = c("r","y","z"))
+    writeRaster(y,filename = fn2, datatype = "INT1U")
+    rm(list = c("r","y"))
     
     gc()
-    fn},
-  ndgr = function(r,outpath_i){
-    fn<-gsub("0_raw/",paste("1_intermediate/","ndgr/",sep = ""),r)
+    fn2},
+  ndgr = function(r,outpath_i = getwd()){
+    fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
+    fn2<-paste(outpath_i,"/1_intermediate/ndgr/",fn,sep = "")
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$g-r$r)/(r$g+r$r)  )+1) *126  )
-    z<-writeRaster(y,filename = fn, datatype = "INT1U")
-    rm(list = c("r","y","z"))
+    writeRaster(y,filename = fn2, datatype = "INT1U")
+    rm(list = c("r","y"))
     
     gc()
-    fn
+    fn2
     
   },
-  ndng = function(r,outpath_i){
-    fn<-gsub("0_raw/",paste("1_intermediate/","ndng/",sep = ""),r)
+  ndng = function(r,outpath_i= getwd()){
+    fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
+    fn2<-paste(outpath_i,"/1_intermediate/ndng/",fn,sep = "")
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$n-r$g)/(r$n+r$g)  )+1) *126  )
-    z<-writeRaster(y,filename = fn, datatype = "INT1U")
-    rm(list = c("r","y","z"))
+    writeRaster(y,filename = fn2, datatype = "INT1U")
+    rm(list = c("r","y"))
     gc()
-    fn
+    fn2
   },
-  bri = function(r,outpath_i){
-    fn<-gsub("0_raw/",paste("1_intermediate/","bri/",sep = ""),r)
+  bri = function(r,outpath_i= getwd()){
+    fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
+    fn2<-paste(outpath_i,"/1_intermediate/bri/",fn,sep = "")
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(sum(r)/4)
-    z<-writeRaster(y,filename = fn, datatype = "INT1U")
-    rm(list = c("r","y","z"))
+    writeRaster(y,filename = fn2, datatype = "INT1U")
+    rm(list = c("r","y"))
     gc()
     
-    fn}
+    fn2}
 )
