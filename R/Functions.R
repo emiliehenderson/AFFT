@@ -137,7 +137,9 @@ GetAFFT<-function(filelist,
   r0<-rast(paste(rawpath,fn,sep = "/"))
   res1<-res(r0)[1]
   fact1<-outres/res1
-  aggfun<-function(x,zm1=donut){
+  donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
+  
+  aggfun1<-function(x,zm1 = donut){
     if(!any(is.na(x))){
       x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
       ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
@@ -154,7 +156,6 @@ GetAFFT<-function(filelist,
     }
     outvec
   }
-  donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
   if(ncpu > 1){
     require(snowfall)
     sfInit(ncpu,parallel = T)
@@ -166,47 +167,46 @@ GetAFFT<-function(filelist,
     sfExport("rawpath",local = T)
     sfExport("indpath",local = T)
     sfExport("aggpath",local = T)
-    sfExport("aggfun",local = T)
+    sfExport("aggfun1",local = T)
   }
- 
-  affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut,overwrite,ncpu,rawpath,indpath,aggpath)})
+  affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut,overwrite,ncpu,rawpath,indpath,aggpath,aggfun1)})
   
   if(ncpu > 1){sfStop()}
   affts
 }
 
-GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu,rp = rawpath,ip = indpath,ap = aggpath){
+GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu,rp = rawpath,ip = indpath,ap = aggpath,aggfun = aggfun1){
   rl<-GetFullResImageList(r,rawpath = rp, indpath = ip)
   nm<-rownames(rl);names(nm)<-nm
-  
   if(ncpu > 1){
     sfExport("rl")
     ol<-sfLapply(nm,function(x,f1=fact1){
-    terraOptions(memfrac = 1/7.01,datatype = "INT4S")
-    r1<-rast(rl[x,1])
-    r1<-terra::subset(r1,rl[x,2])
-
-    outrast<-aggregate(r1,fact = f1,
-                  fun = aggfun)
-    nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
-    names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
-    rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
-    writeRaster(outrast,filename = paste(ap,x,rn,sep = "/"),datatype = "INT4S",overwrite = overwrite)
-    rm(list =c("outrast","r1"))
-    gc()
-    return(x)
+      terraOptions(memfrac = 1/7.01,datatype = "INT4S")
+      r1<-rast(rl[x,1])
+      r1<-terra::subset(r1,rl[x,2])
+      outrast<-aggregate(r1,fact = f1,
+                    fun = aggfun,zm1=donut)
+      nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
+      names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
+      rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
+      writeRaster(outrast,filename = paste(ap,x,rn,sep = "/"),datatype = "INT4S",overwrite = overwrite)
+      rm(list =c("outrast","r1"))
+      gc()
+      return(x)
   })
   
   }else{
     
     terraOptions(memfrac = .9,datatype = "INT4S")
+    
     ol<-lapply(nm,function(x,f1=fact1){
       r1<-rast(rl[x,1])
       r1<-terra::subset(r1,rl[x,2])
-      
-      outrast<-aggregate(r1,fact = f1,fun = aggfun)
-      nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
-      names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
+      outrast<-aggregate(r1,fact = f1,fun = aggfun,zm1=donut)
+      nm<-c(paste("f-",unique(round(donut,2)),sep = ""),
+            paste("fp-",unique(round(donut,2)),sep = ""),
+            c("mean","Q025","med","Q95","sd","skew","kurt"))
+      names(outrast)<-nm
       rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
       writeRaster(outrast,filename = paste(ap,x,rn,sep = "/"),datatype = "INT4S",overwrite = overwrite)
       rm(list =c("outrast","r1"))
