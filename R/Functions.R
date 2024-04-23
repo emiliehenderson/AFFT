@@ -47,16 +47,17 @@ CopyImage<-function(x,outdir = "0_raw"){
 #' @param indfuns file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)
 #' @return filepaths pointing to single-band rasters nested in subfolders inside 1_intermediate. 
 #'
-GetBandIndices<-function(filelist,indfuns = indexFuns,ncpu = 4){
+GetBandIndices<-function(filelist,indfuns = indexFuns,outpath = "1_intermediate",ncpu = 4){
   if(ncpu >1){
     require(snowfall)
     sfInit(parallel = T, cpus = ncpu)
     sfLibrary(terra)
     sfExport("indfuns")
-    indices<-pbapply::pblapply(filelist,function(y,fl){GetMetrics1(y,fl = indfuns,parallel = T)})
+    sfExport("outpath")
+    indices<-pbapply::pblapply(filelist,function(y){GetMetrics1(y,outpath,indfuns,parallel = T)})
     return(indices)
   }else{
-    indices<-pbapply::pblapply(filelist,function(y,fl){GetMetrics1(y,fl = indfuns,parallel = F)})
+    indices<-pbapply::pblapply(filelist,function(y){GetMetrics1(y,outpath,indfuns,parallel = F)})
     return(indices)
   }
  
@@ -71,7 +72,9 @@ GetBandIndices<-function(filelist,indfuns = indexFuns,ncpu = 4){
 #' @param outpath file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)
 #' @return multiband raster with ndvi, ndgr, ndng, brightness.
 #'
-GetMetrics1<-function(rasterfile,outpath = "1_intermediate",fl = indexFuns,parallel = F){
+GetMetrics1<-function(rasterfile,
+                      outpath = "1_intermediate",
+                      fl = indexFuns,parallel = F){
   require(terra)
   cat("\n",rasterfile,"\n")
   
@@ -114,65 +117,77 @@ GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","b
 #'
 #' @export
 #'
-#' @param r tif image name
+#' @param filelist character vector  containing file names for quarter quad images (no path included here. that gets added later)
 #' @param zradii radii for summarizing fft-related statistics.
 #' @param outres resolution of output raster
+#' @param overwrite logical flag -- overwrite existing images?
+#' @param ncpu if > 1, parallel processing will be used internally. Most efficient if set to the number of layers that need processing (e.g., for current config., it's 7: r,g,n,ndvi,ndng,ndgr, and bri).
+#' @param rawpath path to raw, native resolution naip images
+#' @param indpath path to native resolution indices calculated from raw naip images
+#' @param aggpath path to save output files aggregated to 'outres' resolution
 #' @return raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
 #'
 GetAFFT<-function(filelist,
                   zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,
                   overwrite = T,ncpu = 7,
-                  rawpath = "0_raw",indpath = "1_intermediate",aggpath = "2_aggregated"){
-  require(snowfall)
+                  rawpath = "0_raw",
+                  indpath = "1_intermediate",
+                  aggpath = "2_aggregated"){
   fn<-strsplit(filelist[1],"/")[[1]];fn<-fn[length(fn)]
   r0<-rast(paste(rawpath,fn,sep = "/"))
   res1<-res(r0)[1]
   fact1<-outres/res1
-  
+  aggfun<-function(x,zm1=donut){
+    if(!any(is.na(x))){
+      x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
+      ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
+      #y<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
+      y<-tapply(ff1,zm1,mean)
+      yb<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
+      y2<-c(mean(x),quantile(x,c(.025,.5,.95)))
+      y3<-c(sd(x))
+      y4<-log(moments::skewness(c(x))+10) * 50
+      y5<-log(moments::kurtosis(c(x)))*100
+      outvec<-round(c(log(y)*100,yb,y2,y3,y4,y5),0)
+    }else{
+      outvec<-rep(NA,(length(unique(zm1))*2+7))
+    }
+    outvec
+  }
   donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
-  sfInit(ncpu,parallel = T)
-  sfLibrary(gsignal)
-  sfLibrary(terra)
-  
-  
-  sfExport("fact1",local = T)
-  sfExport("donut",local = T)
-  sfExport("rawpath",local = T)
-  sfExport("indpath",local = T)
-  sfExport("aggpath",local = T)
+  if(ncpu > 1){
+    require(snowfall)
+    sfInit(ncpu,parallel = T)
+    sfLibrary(gsignal)
+    sfLibrary(terra)
+    sfLibrary(AFFT)
+    sfExport("fact1",local = T)
+    sfExport("donut",local = T)
+    sfExport("rawpath",local = T)
+    sfExport("indpath",local = T)
+    sfExport("aggpath",local = T)
+    sfExport("aggfun",local = T)
+  }
+ 
   affts<-pbapply::pblapply(filelist,function(y,fl){GetAFFT1(y,zradii,outres,fact1,donut,overwrite,ncpu,rawpath,indpath,aggpath)})
   
-  sfStop()
+  if(ncpu > 1){sfStop()}
   affts
 }
 
 GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu,rp = rawpath,ip = indpath,ap = aggpath){
   rl<-GetFullResImageList(r,rawpath = rp, indpath = ip)
   nm<-rownames(rl);names(nm)<-nm
-  sfExport("rl")
-  ol<-sfLapply(nm,function(x,f1=fact1){
+  
+  if(ncpu > 1){
+    sfExport("rl")
+    ol<-sfLapply(nm,function(x,f1=fact1){
     terraOptions(memfrac = 1/7.01,datatype = "INT4S")
     r1<-rast(rl[x,1])
     r1<-terra::subset(r1,rl[x,2])
 
     outrast<-aggregate(r1,fact = f1,
-                  fun = function(x,zm1=donut){
-      if(!any(is.na(x))){
-        x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
-        ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
-        #y<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
-        y<-tapply(ff1,zm1,mean)
-        yb<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
-        y2<-c(mean(x),quantile(x,c(.025,.5,.95)))
-        y3<-c(sd(x))
-        y4<-log(moments::skewness(c(x))+10) * 50
-        y5<-log(moments::kurtosis(c(x)))*100
-        outvec<-round(c(y,yb,y2,y3,y4,y5),0)
-      }else{
-        outvec<-rep(NA,(length(unique(zm1))*2+7))
-      }
-      outvec
-    })
+                  fun = aggfun)
     nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
     names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
     rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
@@ -182,6 +197,25 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,nc
     return(x)
   })
   
+  }else{
+    
+    terraOptions(memfrac = .9,datatype = "INT4S")
+    ol<-lapply(nm,function(x,f1=fact1){
+      r1<-rast(rl[x,1])
+      r1<-terra::subset(r1,rl[x,2])
+      
+      outrast<-aggregate(r1,fact = f1,fun = aggfun)
+      nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
+      names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
+      rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
+      writeRaster(outrast,filename = paste(ap,x,rn,sep = "/"),datatype = "INT4S",overwrite = overwrite)
+      rm(list =c("outrast","r1"))
+      gc()
+      return(x)
+    })
+    
+  }
+
   ol
 }
 
@@ -192,8 +226,8 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,nc
 #'
 #' @export
 #'
-#' @param rasterfile character vector with tif image names. If full path not included, GetMetrics will assume that files are in 0_raw folder.
-#' @param outpath1 file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)
+#' @param rasterfile character vector with tif image names. If full path not included, GetMetrics will assume that these files are in 0_raw folder.
+#' @param outpath1 file path pointer where R has already stored intermediate (full resolution) indices 
 #' @param outpath2 file path pointer where R will store aggregated image tiles (reduced resolution), texture summaries across all bands and indices.
 #' @param outres resolution of output texture summaries
 #' @param ncpus specify number of cpus to use for parallel processing. 

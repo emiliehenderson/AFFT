@@ -8,7 +8,8 @@ GetFullResImageList(
   fn,
   subset1 = c("r", "g", "n", "ndvi", "ndng", "ndgr", "bri"),
   rawpath = "0_raw",
-  indpaths = paste("1_intermediate/", c("ndvi", "ndng", "ndgr", "bri"), sep = "")
+  indpath = "1_intermediate",
+  indfolders = c("ndvi", "ndng", "ndgr", "bri")
 )
 }
 \description{
