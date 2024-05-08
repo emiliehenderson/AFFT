@@ -7,30 +7,31 @@ indpath<-paste(localpath,"1_intermediate",sep = "/")
 ndvipath<-paste(indpath,"ndvi",sep = "/")
 aggpath<-paste(localpath,"2_aggregated",sep = "/")
 ndvipath_a<-paste(aggpath,"ndvi",sep = "/")
+batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog.csv")
+print(batches)
+curbatch<-1
 
-rfl<-rawfiles<-list.files(rawpath,pattern = ".tif")
+rawfiles<-read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]
+rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
 indexfiles<-list.files(ndvipath)
-
-rawfiles<-list.files(rawpath,full.names = T,pattern = ".tif")
-names(rawfiles)<-rfl
-
-rawfiles<-rawfiles[!rfl %in% indexfiles]
+rfl<-rawfiles<-rawfiles[!rawfiles %in% indexfiles]
+rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
 
 terraOptions(memfrac = .9,datatype = "INT1U")
 
 setwd(localpath)
-GetBandIndices(rawfiles[3],ncpu = 4)
+GetBandIndices(rawfiles,ncpu = 4)
 
 indexfiles<-list.files(ndvipath,full.names = T)
 aggfiles<-paste(ndvipath,list.files(ndvipath_a,full.names = F),sep = "/")
 indexfiles<-indexfiles[!indexfiles %in% aggfiles]
 ind<-0
 
-GetAFFT(indexfiles[2:3],
+GetAFFT(indexfiles,
         rawpath = rawpath,
         indpath = paste(localpath,"1_intermediate",sep = "/"),
         aggpath = paste(localpath,"2_aggregated",sep = "/"),
-        ncpu = 1,overwrite = T
+        ncpu = 7,overwrite = T
         )
 # 
 # fl<-list.files("2_aggregated/ndvi",full.names = T)
@@ -51,7 +52,7 @@ junk<-lapply(aggfiles,function(x,p = 2,band = "ndvi"){
   if(p==2){
         par(mfrow =c(2,2))
    # r4<-app(r3,function(x){c(x[1],x[2],sum(x[3:4]))/sum(x[1:4])*255})
-    r4<-subset(r3,c(1,6,7))
+    r4<-subset(r3,c(7:9))
   
     e1<-ext(r4)#/5
     plotRGB(r4,ext = e1,smooth = F,stretch = "lin")
