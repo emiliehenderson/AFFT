@@ -14,9 +14,9 @@ GetMetrics(
 )
 }
 \arguments{
-\item{rasterfile}{character vector with tif image names. If full path not included, GetMetrics will assume that files are in 0_raw folder.}
+\item{rasterfile}{character vector with tif image names. If full path not included, GetMetrics will assume that these files are in 0_raw folder.}
 
-\item{outpath1}{file path pointer where R will store intermediate (full resolution) image tiles, with calculated indices as well as original bands (although not blue currently)}
+\item{outpath1}{file path pointer where R has already stored intermediate (full resolution) indices}
 
 \item{outpath2}{file path pointer where R will store aggregated image tiles (reduced resolution), texture summaries across all bands and indices.}
 

@@ -4,7 +4,12 @@
 \alias{GetBandIndices}
 \title{Copies source airphotos to intermediate directory, calculates extra indices to add to image. Resolution unchanged.}
 \usage{
-GetBandIndices(filelist, indfuns = indexFuns, ncpu = 4)
+
+GetBandIndices(
+  filelist,
+  indfuns = indexFuns,
+  outpath = "1_intermediate",
+  ncpu = 4
 }
 \arguments{
 \item{filelist}{character vector with tif image names. If full path not included, GetMetrics will assume that files are in 0_raw folder.}

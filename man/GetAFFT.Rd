@@ -9,15 +9,28 @@ GetAFFT(
   zradii = c(0.75, 1.25, 2.5, 5, 10, 60),
   outres = 30,
   overwrite = T,
-  ncpu = 7
+  ncpu = 7,
+  rawpath = "0_raw",
+  indpath = "1_intermediate",
+  aggpath = "2_aggregated"
 )
 }
 \arguments{
+\item{filelist}{character vector  containing file names for quarter quad images (no path included here. that gets added later)}
+
 \item{zradii}{radii for summarizing fft-related statistics.}
 
 \item{outres}{resolution of output raster}
 
-\item{r}{tif image name}
+\item{overwrite}{logical flag -- overwrite existing images?}
+
+\item{ncpu}{if > 1, parallel processing will be used internally. Most efficient if set to the number of layers that need processing (e.g., for current config., it's 7: r,g,n,ndvi,ndng,ndgr, and bri).}
+
+\item{rawpath}{path to raw, native resolution naip images}
+
+\item{indpath}{path to native resolution indices calculated from raw naip images}
+
+\item{aggpath}{path to save output files aggregated to 'outres' resolution}
 }
 \value{
 raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
