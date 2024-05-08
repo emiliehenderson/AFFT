@@ -8,7 +8,8 @@ GetAFFT(
   filelist,
   zradii = c(0.75, 1.25, 2.5, 5, 10, 60),
   outres = 30,
-  overwrite = T
+  overwrite = T,
+  ncpu = 7
 )
 }
 \arguments{

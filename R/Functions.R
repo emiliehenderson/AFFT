@@ -368,6 +368,79 @@ MergeAggregatedAirphotos<-function(tiflist,outpath2 = outpath2){
   return(y)  
 }
 
+
+## MergeAggregatedAirphotos2 ------------
+#' Used after GetMetrics.
+#'
+#' @description merges tiles in tiflist, one tif per band in the tiles.
+#'
+#' @export
+#'
+#' @param tiflist list of files to merge
+#' @param filename name of output file
+#' @param outpath2 file path to folder where output of this function should be stored (usually same directory as tiflist).
+#' @return output image path. Mostly called to generate images that are easy to read in and work with later.
+#'
+MergeAggregatedAirphotos2<-function(tiflist,filename, outpath = "2_aggregated"){
+  ## Consider allowing terra to use more RAM?  How to do this?
+  ## Handling of names in GetMetrics may require revisions in this function.
+  mergefun<-function(x,tfn,tp = tmp,op = outpath){
+    tmpfile<-paste(op,tfn,x,".tif",sep = "")
+    if(file.exists(tmpfile)){
+      return(tmpfile)
+    }else{
+      browser()
+      vrtfile<-paste(op,"/tmp",sep = "")
+      sprc1<-sprc(tp[[x]])
+      y<-terra::merge(sprc1,filename = tmpfile)
+      y<-rast(tp[[x]][1])
+      for(i in 2:length(tp)){y<-merge(y,rast(tp[[x]]))}
+      #y<-terra::vrt(tp[[x]],vrtfile,overwrite = T)
+      y<-terra::rast(vrtfile)
+      y<-terra::writeRaster(y,tmpfile)
+      return(terra::sources(y))
+    }
+  }
+  tmp<-reshape2::colsplit(names(tiflist),"_",c(letters[1:8]))
+  tmp<-split(tiflist,tmp$b)
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge1\n")
+  m1<-do.call(c,pbapply::pblapply(nm,mergefun,"/m1_"))
+  
+  tmp<-split(m1,substr(names(m1),1,nchar(names(m1))-1))
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge2\n")
+  m2<-do.call(c,pbapply::pblapply(nm,mergefun,tfn = "/m2_"))
+  
+  tmp<-split(m2,substr(names(m2),1,nchar(names(m2))-1))
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge3\n")
+  m3<-do.call(c,pbapply::pblapply(nm,mergefun,tfn = "/m3_"))
+  
+  tmp<-split(m3,substr(names(m3),1,nchar(names(m3))-2))
+  nm<-names(tmp);names(nm)<-nm
+  cat("merge4\n")
+  m4<-do.call(c,pbapply::pblapply(nm,mergefun,tfn = "/m4_"))
+  
+  ### at a certain stage, consider: merging individual layers may well be a more sensible 
+  ## operation than merging the whole dang thing. 
+  outfile<-paste(outpath,"/AFFT_Initial_",filename,".tif",sep = "")
+  
+  
+  vrtfile<-paste(outpath,"/tmp",sep = "")
+  y<-terra::vrt(m4,vrtfile,overwrite = T)
+  y<-terra::rast(vrtfile)
+  y<-terra::writeRaster(y,outfile,overwrite = T)
+  
+  
+  
+  ## cleanup interrim files
+  interrim.files<-c(m1,m2,m3,m4)
+  rm1<-sapply(interrim.files,file.remove)
+  
+  return(y)  
+}
+
 ## MakePCA ------------
 #' Perform principal components analysis to help reduce dimensionality of a multiband image.
 #'

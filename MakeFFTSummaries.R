@@ -1,33 +1,32 @@
 ## Setup ------------------
   library(terra);library(AFFT)
   ci<-NULL
-  airpath0<-"J:/airphoto/WY_NAIP/WY_NAIP2019_4band/naip2019_wy/geotiff"
+  airpath0<-"J:/ID_NAIP/airphotos"
   airpath_local<-"0_raw"
   outpath1<-"1_intermediate"
   outpath2<-"2_aggregated"
   outpath3<-"3_corrected"
   outpath4<-"4_PCA"
 ## Get tile footprints ---------
-    fl1<-paste(airpath0,list.files(airpath0),sep = "/")
+  
+    fl1<-list.files(airpath0,full.names = T, pattern = "4")
     if(!all(substr(fl1,nchar(fl1)-2,nchar(fl1))=="tif")){
       #if(readline("explore subfolers?")%in% "y"){
-        fl2<-do.call(c,lapply(fl1,function(x){y<-paste(x,list.files(x),sep = "/")
+        fl2<-do.call(c,lapply(fl1,function(x){y<-list.files(x,full.path = T)
           if(!all(grepl("tif",y))){
-            if(length(y)==1){z<-paste(y,list.files(y),sep = "/")
-            }else{z<-lapply(y,function(p){paste(p,list.files(p),sep = "/")
-              
-              })
+            if(length(y)==1){z<-list.files(y,full.path = T)
+            }else{z<-lapply(y,function(p){list.files(p,full.path = T)})
             }
             return(z)
           }else{return(y)}
         }))
-        fl3<-do.call(c,pbapply::pblapply(fl2,function(x){paste(x,list.files(x),sep = "/")}))
+        fl3<-do.call(c,fl2)#pbapply::pblapply(fl2,function(x){paste(x,list.files(x),sep = "/")}))
         
       #}
     }
-    df<-reshape2::colsplit(fl3,"/",c("a","b","c","d","e","f","g","h","i"))
+    df<-reshape2::colsplit(fl3,"/",c("a","b","c","d","e"))
     df<-data.frame(df,filepath = fl3)
-    df$Name<-gsub(".tif","",df$i)
+    df$Name<-gsub(".tif","",df$e)
     fl4<-df$filepath;names(fl4)<-df$Name
     fl4<-fl4[substr(fl4,nchar(fl4)-2,nchar(fl4)) =="tif"]
     ## note: There's a hidden subfolder or two in here. perhaps it's not one I need?
@@ -42,9 +41,9 @@
     #names(fp2)<-nm1[ci]
     
     statebnd <- vect("J:/R4VegMapping_Development/R4VegMapping/Data/Spatial/cb_2019_us_state_500k.shp")
-    WY<-statebnd[statebnd$NAME=="Wyoming",]
-    WY<-project(WY,fp1[[1]])
-    plot(WY)
+    ID<-statebnd[statebnd$NAME=="Idaho",]
+    ID<-project(ID,fp1[[1]])
+    plot(ID)
     
     bnd<-vect("J:/support/r4_mappingsections_final.shp")
     bnd<-project(bnd,fp1[[1]])
@@ -52,12 +51,12 @@
     plot(bnd,add = T)
     text(bnd,bnd$ColumnName)
     plot(vect(fp1), border = "gray",add = T)
-    plot(WY, lwd = 2,add =T)
+    plot(ID, lwd = 2,add =T)
 
     plot(vect(fp1),border = "lightgray")
     plot(bnd,add = T,border = "royalblue",lwd = 2)
     text(bnd,bnd$ColumnName,col = "red",font = 2,cex = 1)
-    bnd1<-bnd[bnd$ColumnName %in% "X342G",]
+    bnd1<-bnd[bnd$ColumnName %in% "M332F",]
     bnd1<-buffer(bnd1,20000)
 
 ## Select tiles to process ----------------
@@ -65,8 +64,8 @@
     plot(bnd1, border = "darkgray");text(bnd1,bnd1$ColumnName)
     
     plot(vect(fp1), border = "gray",add = T)
-    plot(WY, lwd = 2,add =T)
-    if(length(fpz)>0)plot(fpz,border = "royalblue",add = T,lwd = 3.5, ext = ext(fpz)*2)
+    plot(ID, lwd = 2,add =T)
+    #if(length(fpz)>0)plot(fpz,border = "royalblue",add = T,lwd = 3.5, ext = ext(fpz)*2)
     nm1<-names(fp1);names(nm1)<-nm1
     fp3<-do.call(c,pbapply::pblapply(nm1,function(x,ee = bnd1){
       ey<-fp1[[x]]
