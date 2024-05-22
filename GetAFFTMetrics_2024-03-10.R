@@ -3,13 +3,14 @@ rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 rawpath<-"N:/mpsg_naip"
+rawlocalpath<-"0_raw"
 indpath<-paste(localpath,"1_intermediate",sep = "/")
 ndvipath<-paste(indpath,"ndvi",sep = "/")
 aggpath<-paste(localpath,"2_aggregated",sep = "/")
 ndvipath_a<-paste(aggpath,"ndvi",sep = "/")
-batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog.csv")
+batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 print(batches)
-curbatch<-1
+curbatch<-12
 
 rawfiles<-read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]
 rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
@@ -17,10 +18,14 @@ indexfiles<-list.files(ndvipath)
 rfl<-rawfiles<-rawfiles[!rawfiles %in% indexfiles]
 rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
 
+setwd(localpath)
+localraw<-gsub(rawpath,rawlocalpath,rawfiles)
+#file.copy(rawfiles,localraw)
+localraw<-localraw[file.info(localraw)$size > 200000000]
+
 terraOptions(memfrac = .9,datatype = "INT1U")
 
-setwd(localpath)
-GetBandIndices(rawfiles,ncpu = 4)
+GetBandIndices(localraw,ncpu = 1)
 
 indexfiles<-list.files(ndvipath,full.names = T)
 aggfiles<-paste(ndvipath,list.files(ndvipath_a,full.names = F),sep = "/")
