@@ -1,1 +1,0 @@
-## Store Raw Airphoto Tiles In Here.
