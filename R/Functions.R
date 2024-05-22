@@ -175,7 +175,8 @@ GetAFFT<-function(filelist,
   affts
 }
 
-GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu,rp = rawpath,ip = indpath,ap = aggpath,aggfun = aggfun1){
+GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,ncpu,
+                   rp = rawpath,ip = indpath,ap = aggpath,aggfun = aggfun1){
   rl<-GetFullResImageList(r,rawpath = rp, indpath = ip)
   nm<-rownames(rl);names(nm)<-nm
   if(ncpu > 1){
@@ -698,7 +699,7 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$n-r$r)/(r$n+r$r)  )+1) *126  )
-    writeRaster(y,filename = fn2, datatype = "INT1U")
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     
     gc()
@@ -709,7 +710,7 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$g-r$r)/(r$g+r$r)  )+1) *126  )
-    writeRaster(y,filename = fn2, datatype = "INT1U")
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     
     gc()
@@ -722,7 +723,7 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$n-r$g)/(r$n+r$g)  )+1) *126  )
-    writeRaster(y,filename = fn2, datatype = "INT1U")
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     gc()
     fn2
@@ -733,7 +734,7 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(sum(r)/4)
-    writeRaster(y,filename = fn2, datatype = "INT1U")
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     gc()
     
