@@ -699,7 +699,8 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$n-r$r)/(r$n+r$r)  )+1) *126  )
-    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
+    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
+    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
     rm(list = c("r","y"))
     
     gc()
@@ -710,7 +711,8 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$g-r$r)/(r$g+r$r)  )+1) *126  )
-    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
+    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
+    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
     rm(list = c("r","y"))
     
     gc()
@@ -723,7 +725,8 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(  ((  (r$n-r$g)/(r$n+r$g)  )+1) *126  )
-    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
+    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
+    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
     rm(list = c("r","y"))
     gc()
     fn2
@@ -734,7 +737,8 @@ indexFuns<-list(
     r<-terra::rast(r)
     names(r)<-c("r","g","b","n")
     y<-as.int(sum(r)/4)
-    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
+    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
+    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
     rm(list = c("r","y"))
     gc()
     
