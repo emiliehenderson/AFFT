@@ -6,16 +6,26 @@ rawpath<-"N:/mpsg_naip"
 rawlocalpath<-"0_raw"
 indpath<-paste(localpath,"1_intermediate",sep = "/")
 ndvipath<-paste(indpath,"ndvi",sep = "/")
+bripath<-paste(indpath,"bri",sep = "/")
 aggpath<-paste(localpath,"2_aggregated",sep = "/")
-ndvipath_a<-paste(aggpath,"ndvi",sep = "/")
+
+ndvipath_a<-paste(aggpath,"bri",sep = "/")
+bripath_a<-paste(aggpath,"bri",sep = "/")
 batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 print(batches)
-curbatch<-12
+write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 
-rawfiles<-read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]
-rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
-indexfiles<-list.files(ndvipath)
-rfl<-rawfiles<-rawfiles[!rawfiles %in% indexfiles]
+
+curbatches<-10:11
+batches$Status[curbatches]<-"Running"
+batches$Location[curbatches]<-"Workstation 2"
+write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv",row.names = F)
+
+rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
+batchlist<-rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
+#indexfiles<-list.files(ndvipath)
+brifiles<-list.files(bripath)
+rfl<-rawfiles<-rawfiles[!rawfiles %in% brifiles]
 rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
 
 setwd(localpath)
@@ -27,17 +37,56 @@ terraOptions(memfrac = .9,datatype = "INT1U")
 
 GetBandIndices(localraw,ncpu = 1)
 
-indexfiles<-list.files(ndvipath,full.names = T)
-aggfiles<-paste(ndvipath,list.files(ndvipath_a,full.names = F),sep = "/")
+
+
+indexfiles<-list.files(bripath,full.names = F)
+indexfiles<-indexfiles[indexfiles %in% batchlist]
+aggfiles<-list.files(bripath_a,full.names = F)
 indexfiles<-indexfiles[!indexfiles %in% aggfiles]
 ind<-0
 
-GetAFFT(indexfiles,
-        rawpath = rawpath,
-        indpath = paste(localpath,"1_intermediate",sep = "/"),
-        aggpath = paste(localpath,"2_aggregated",sep = "/"),
-        ncpu = 7,overwrite = T
-        )
+# time1<-system.time({GetAFFT(indexfiles[1:10],
+#         rawpath = rawpath,
+#         indpath = paste(localpath,"1_intermediate",sep = "/"),
+#         aggpath = paste(localpath,"2_aggregated",sep = "/"),
+#         ncpu = 7,overwrite = T)})
+library(snowfall)
+time2<-system.time({
+  sfInit(parallel = T, cpus = 15)
+sfLibrary(AFFT)
+sfLibrary(terra)
+sfExport(list =c("rawpath","aggpath","localpath","indexfiles"))
+stime<-Sys.time()
+sfExport("stime")
+write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
+sfLapply(indexfiles,function(x){GetAFFT(x,
+          rawpath = rawpath,
+          indpath = paste(localpath,"1_intermediate",sep = "/"),
+          aggpath = paste(localpath,"2_aggregated",sep = "/"),
+          ncpu = 1,overwrite = T
+          )
+  write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
+  donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
+  donefiles<-donefiles[2:length(donefiles)]
+  te<-difftime(Sys.time(), stime,units = "secs")
+  prop.done<-length(donefiles)/length(indexfiles)
+  tr<-te*(1-prop.done)/(prop.done)
+  hms<-SDMap::SecsToHMS(tr)
+  write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = F)
+  write("",paste(localpath,"progress.txt",sep = "/"),append = T)
+  hms<-SDMap::SecsToHMS(te)
+  
+  write("Time Elapsed:",paste(localpath,"progress.txt",sep = "/"),append = T)
+  write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+  
+  hms<-SDMap::SecsToHMS(tr)
+  
+  write("Time Remaining:",paste(localpath,"progress.txt",sep = "/"),append = T)
+  write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+  })
+sfStop()
+})
+
 # 
 # fl<-list.files("2_aggregated/ndvi",full.names = T)
 # r1<-rast(fl[3])
