@@ -3,15 +3,18 @@ rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 rawpath<-"N:/mpsg_naip"
+rawlocalpath<-"0_raw"
 indpath<-paste(localpath,"1_intermediate",sep = "/")
 ndvipath<-paste(indpath,"ndvi",sep = "/")
 bripath<-paste(indpath,"bri",sep = "/")
 aggpath<-paste(localpath,"2_aggregated",sep = "/")
+
 ndvipath_a<-paste(aggpath,"bri",sep = "/")
 bripath_a<-paste(aggpath,"bri",sep = "/")
 batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 print(batches)
 write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv")
+
 
 curbatches<-10:11
 batches$Status[curbatches]<-"Running"
@@ -25,10 +28,14 @@ brifiles<-list.files(bripath)
 rfl<-rawfiles<-rawfiles[!rawfiles %in% brifiles]
 rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
 
+setwd(localpath)
+localraw<-gsub(rawpath,rawlocalpath,rawfiles)
+#file.copy(rawfiles,localraw)
+localraw<-localraw[file.info(localraw)$size > 200000000]
+
 terraOptions(memfrac = .9,datatype = "INT1U")
 
-setwd(localpath)
-GetBandIndices(rawfiles,ncpu = 4)
+GetBandIndices(localraw,ncpu = 1)
 
 
 
