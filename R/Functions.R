@@ -54,7 +54,7 @@ GetBandIndices<-function(filelist,indfuns = indexFuns,outpath = "1_intermediate"
     sfLibrary(terra)
     sfExport("indfuns")
     sfExport("outpath")
-    indices<-pbapply::pblapply(filelist,function(y){GetMetrics1(y,outpath,indfuns,parallel = T)})
+    indices<-sfLapply(filelist,function(y){GetMetrics1(y,outpath,indfuns)})#,parallel = T
     return(indices)
   }else{
     indices<-pbapply::pblapply(filelist,function(y){GetMetrics1(y,outpath,indfuns,parallel = F)})
@@ -696,11 +696,10 @@ indexFuns<-list(
   ndvi = function(r,outpath_i = getwd()){
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
     fn2<-paste(outpath_i,"/1_intermediate/ndvi/",fn,sep = "")
-    r<-terra::rast(r)
-    names(r)<-c("r","g","b","n")
-    y<-as.int(  ((  (r$n-r$r)/(r$n+r$r)  )+1) *126  )
-    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
-    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
+    r<-terra::rast(r,lyrs =c(1,4))
+    names(r)<-c("one","two")
+    y<-as.int(  ((  (r$one-r$two)/(r$one+r$two)  )+1) *126  )
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     
     gc()
@@ -708,11 +707,10 @@ indexFuns<-list(
   ndgr = function(r,outpath_i = getwd()){
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
     fn2<-paste(outpath_i,"/1_intermediate/ndgr/",fn,sep = "")
-    r<-terra::rast(r)
-    names(r)<-c("r","g","b","n")
-    y<-as.int(  ((  (r$g-r$r)/(r$g+r$r)  )+1) *126  )
-    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
-    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
+    r<-terra::rast(r,lyrs =c(2,1))
+    names(r)<-c("one","two")
+    y<-as.int(  ((  (r$one-r$two)/(r$one+r$two)  )+1) *126  )
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     
     gc()
@@ -722,11 +720,10 @@ indexFuns<-list(
   ndng = function(r,outpath_i= getwd()){
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
     fn2<-paste(outpath_i,"/1_intermediate/ndng/",fn,sep = "")
-    r<-terra::rast(r)
-    names(r)<-c("r","g","b","n")
-    y<-as.int(  ((  (r$n-r$g)/(r$n+r$g)  )+1) *126  )
-    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
-    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
+    r<-terra::rast(r,lyrs =c(4,2))
+    names(r)<-c("one","two")
+    y<-as.int(  ((  (r$one-r$two)/(r$one+r$two)  )+1) *126  )
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     gc()
     fn2
@@ -735,10 +732,8 @@ indexFuns<-list(
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
     fn2<-paste(outpath_i,"/1_intermediate/bri/",fn,sep = "")
     r<-terra::rast(r)
-    names(r)<-c("r","g","b","n")
     y<-as.int(sum(r)/4)
-    if(y@cpp@.xData$range_max>255){dt<-"INT2U"}else{dt<-"INT1U"}
-    writeRaster(y,filename = fn2, datatype = dt,overwrite = T)
+    writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
     rm(list = c("r","y"))
     gc()
     
