@@ -82,11 +82,11 @@ GetMetrics1<-function(rasterfile,
   if(parallel){
      sfExport("rasterfile")
         gc()
-        indlist<-sfLapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf)})
+        indlist<-sfLapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,outpath)})
         gc()
   }else{
     gc()
-    indlist<-lapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf)})
+    indlist<-lapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,outpath)})
     gc()
   }                               
       indlist

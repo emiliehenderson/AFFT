@@ -3,6 +3,7 @@ rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 rawpath<-"N:/mpsg_naip"
+localrawpath<-"C:/TEMP/0_raw"
 indpath<-paste(localpath,"1_intermediate",sep = "/")
 indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
@@ -22,13 +23,23 @@ batches$Location[curbatches]<-"Workstation 2"
 write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv",row.names = F)
 
 rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
+
+#pbapply::pblapply(indexfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
 batchlist<-rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
 #indexfiles<-list.files(ndvipath)
 indfiles<-table(list.files(indpaths));indfiles<-names(indfiles[indfiles>3])
+aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>3])
+
 rfl<-rawfiles<-rawfiles[!rawfiles %in% indfiles]
+#pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
 rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
 
 terraOptions(memfrac = .9,datatype = "INT1U")
+
+
+rawfiles<-gsub("N:/mpsg_naip","C:/TEMP/0_raw",rawfiles)
+indpath<-"C:/TEMP/1_intermediate"
+aggpath<-"D:/LocalNaip/2_aggregated"
 
 setwd(localpath)
 
@@ -38,7 +49,7 @@ time2<-system.time({
   sfInit(parallel = T, cpus = 10)
   sfLibrary(AFFT)
   sfLibrary(terra)
-  sfExport(list =c("rawpath","aggpath","localpath","rawfiles"))
+  sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","rawfiles"))
   stime<-Sys.time()
   sfExport("stime")
   write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
@@ -84,18 +95,21 @@ ind<-0
 #         aggpath = paste(localpath,"2_aggregated",sep = "/"),
 #         ncpu = 7,overwrite = T)})
 library(snowfall)
+
+localrawpath<-"C:/TEMP/0_raw"
+localcpath<-"C:/TEMP"
 time2<-system.time({
   sfInit(parallel = T, cpus = 15)
   sfLibrary(AFFT)
   sfLibrary(terra)
-  sfExport(list =c("rawpath","aggpath","localpath","indexfiles"))
+  sfExport(list =c("rawpath","aggpath","localpath","indexfiles","localrawpath","localcpath"))
   stime<-Sys.time()
   sfExport("stime")
   write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
   sfClusterApplyLB(indexfiles,function(x){
     GetAFFT(x,
-              rawpath = rawpath,
-              indpath = paste(localpath,"1_intermediate",sep = "/"),
+              rawpath = localrawpath,
+              indpath = paste(localcpath,"1_intermediate",sep = "/"),
               aggpath = paste(localpath,"2_aggregated",sep = "/"),
               ncpu = 1,overwrite = T
               )
