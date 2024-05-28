@@ -7,11 +7,13 @@ indpath<-paste(localpath,"1_intermediate",sep = "/")
 ndvipath<-paste(indpath,"ndvi",sep = "/")
 aggpath<-paste(localpath,"2_aggregated",sep = "/")
 ndvipath_a<-paste(aggpath,"ndvi",sep = "/")
-batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog.csv")
+batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 print(batches)
-curbatch<-1
-
-rawfiles<-read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]
+curbatches<-13
+batches[curbatches,"Status"]<-"Running"
+batches[curbatches,"Location"]<-"Charadrius"
+write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv",row.names = F)
+rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
 rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
 indexfiles<-list.files(ndvipath)
 rfl<-rawfiles<-rawfiles[!rawfiles %in% indexfiles]
@@ -20,11 +22,14 @@ rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
 terraOptions(memfrac = .9,datatype = "INT1U")
 
 setwd(localpath)
-GetBandIndices(rawfiles,ncpu = 4)
+if(length(rfl)>0)GetBandIndices(rawfiles,ncpu = 4)
 
 indexfiles<-list.files(ndvipath,full.names = T)
 aggfiles<-paste(ndvipath,list.files(ndvipath_a,full.names = F),sep = "/")
 indexfiles<-indexfiles[!indexfiles %in% aggfiles]
+batchfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
+batchfiles<-paste(ndvipath,gsub("N:/mpsg_naip/","",batchfiles),sep = "/")
+indexfiles<-indexfiles[indexfiles %in% batchfiles]
 ind<-0
 
 GetAFFT(indexfiles,
