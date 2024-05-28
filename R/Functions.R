@@ -51,10 +51,34 @@ GetBandIndices<-function(filelist,indfuns = indexFuns,outpath = "1_intermediate"
   if(ncpu >1){
     require(snowfall)
     sfInit(parallel = T, cpus = ncpu)
-    sfLibrary(terra)
-    sfExport("indfuns")
-    sfExport("outpath")
-    indices<-sfLapply(filelist,function(y){GetMetrics1(y,outpath,indfuns)})#,parallel = T
+     sfLibrary(terra)
+     sfLibrary(AFFT)
+     sfExport("indfuns")
+     sfExport("outpath")
+    # sfExport("filelist")
+    # stime<-Sys.time()
+    # sfExport("stime")
+    # write(" ","donefiles.txt",append = F)
+    indices<-pbapply::pblapply(filelist,function(y){
+      GetMetrics1(y,outpath,indfuns,parallel = T)
+      # write(y,"donefiles.txt",append = T)
+      # donefiles<-readLines("donefiles.txt")
+      # donefiles<-donefiles[2:length(donefiles)]
+      # te<-difftime(Sys.time(), stime,units = "secs")
+      # prop.done<-length(donefiles)/length(filelist)
+      # tr<-te*(1-prop.done)/(prop.done)
+      # hms<-SDMap::SecsToHMS(tr)
+      # write(paste(round(prop.done * 100,3),"% done"),"progress.txt",append = F)
+      # write("","progress.txt",append = T)
+      # hms<-SDMap::SecsToHMS(te)
+      # 
+      # write("Time Elapsed:","progress.txt",append = T)
+      # write(paste(paste(hms,names(hms)),collapse = "   "),"progress.txt",append = T)
+      # hms<-SDMap::SecsToHMS(tr)
+      # write("Time Remaining:","progress.txt",append = T)
+      # write(paste(paste(hms,names(hms)),collapse = "   "),"progress.txt",append = T)
+      # return(y)
+      })#,parallel = T
     return(indices)
   }else{
     indices<-pbapply::pblapply(filelist,function(y){GetMetrics1(y,outpath,indfuns,parallel = F)})
