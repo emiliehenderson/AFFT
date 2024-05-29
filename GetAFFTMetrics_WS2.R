@@ -2,36 +2,37 @@ library(terra);library(AFFT)
 rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
+localcpath<-"C:/TEMP"
 rawpath<-"N:/mpsg_naip"
 localrawpath<-"C:/TEMP/0_raw"
 indpath<-paste(localpath,"1_intermediate",sep = "/")
 indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
 aggpath<-paste(localpath,"2_aggregated",sep = "/")
-aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
-ndvipath<-paste(indpath,"ndvi",sep = "/")
-bripath<-paste(indpath,"bri",sep = "/")
-ndvipath_a<-paste(aggpath,"bri",sep = "/")
-bripath_a<-paste(aggpath,"bri",sep = "/")
+aggpath<-paste(localpath,"2_aggregated",sep = "/")
+aggpaths2<-paste("N:/mpsg_naip_afft",c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 print(batches)
 write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 
-curbatches<-10:11
+curbatches<-c(12,15)
 batches$Status[curbatches]<-"Running"
 batches$Location[curbatches]<-"Workstation 2"
 write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv",row.names = F)
 
 rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
 
-#pbapply::pblapply(indexfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
 batchlist<-rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
-#indexfiles<-list.files(ndvipath)
-indfiles<-table(list.files(indpaths));indfiles<-names(indfiles[indfiles>3])
-aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>3])
 
-rfl<-rawfiles<-rawfiles[!rawfiles %in% indfiles]
-#pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
+indfiles<-table(list.files(indpaths));indfiles<-names(indfiles[indfiles>3])
+aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
+aggfiles2<-table(list.files(aggpaths2));aggfiles2<-names(aggfiles2[aggfiles2>6])
+
+#rfl<-rawfiles<-rawfiles[!rawfiles %in% indfiles]
+rfl<-rawfiles<-rawfiles[!rawfiles %in% c(indfiles,aggfiles,aggfiles2)]
+
+
+pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
 rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
 
 terraOptions(memfrac = .9,datatype = "INT1U")
@@ -87,13 +88,13 @@ indexfiles<-indexfiles[indexfiles %in% batchlist]
 aggfiles<-list.files(paste(aggpath,list.files(aggpath),sep = "/"),full.names = F)
 aggfiles<-names(table(aggfiles)[table(aggfiles)==7])
 indexfiles<-indexfiles[!indexfiles %in% aggfiles]
-ind<-0
 
-# time1<-system.time({GetAFFT(indexfiles[1:10],
-#         rawpath = rawpath,
-#         indpath = paste(localpath,"1_intermediate",sep = "/"),
-#         aggpath = paste(localpath,"2_aggregated",sep = "/"),
-#         ncpu = 7,overwrite = T)})
+
+ time1<-system.time({GetAFFT(aggfiles[1:10],
+         rawpath = rawpath,
+         indpath = paste(localcpath,"1_intermediate",sep = "/"),
+         aggpath = paste(localpath,"2_aggregated",sep = "/"),
+         ncpu = 1,overwrite = T)})
 library(snowfall)
 
 localrawpath<-"C:/TEMP/0_raw"
