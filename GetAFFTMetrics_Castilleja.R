@@ -11,6 +11,8 @@ indpath<-paste(localcpath,"1_intermediate",sep = "/")
 indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
 aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
+
+aggpaths2<-paste("N:/mpsg_naip_afft/2_aggregated",c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 aggpaths.done<-paste("N:/mpsg_naip_afft/2_aggregated",c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 
 

@@ -5,47 +5,53 @@ localpath<-"D:/LocalNaip"
 localcpath<-"C:/TEMP"
 rawpath<-"N:/mpsg_naip"
 localrawpath<-"C:/TEMP/0_raw"
-indpath<-paste(localpath,"1_intermediate",sep = "/")
+indpath<-paste(localcpath,"1_intermediate",sep = "/")
 indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
 aggpath<-paste(localpath,"2_aggregated",sep = "/")
-aggpath<-paste(localpath,"2_aggregated",sep = "/")
-aggpaths2<-paste("N:/mpsg_naip_afft",c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
+aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
+aggpaths2<-paste("N:/mpsg_naip_afft/2_aggregated",c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
+
 batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 print(batches)
 write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 
-curbatches<-c(12,15)
-batches$Status[curbatches]<-"Running"
-batches$Location[curbatches]<-"Workstation 2"
-write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv",row.names = F)
-
+curbatches<-c(12)
 rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
+alldone<-list.files(aggpaths2)
+rawfiles<-rawfiles[!rawfiles %in% paste("N:/mpsg_naip/",alldone,sep = "")]
 
-batchlist<-rawfiles<-sapply(strsplit(rawfiles,"/"),function(x){x[3]})
+fileinfo<-file.info(rawfiles)
 
-indfiles<-table(list.files(indpaths));indfiles<-names(indfiles[indfiles>3])
-aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
-aggfiles2<-table(list.files(aggpaths2));aggfiles2<-names(aggfiles2[aggfiles2>6])
+rfs<-split(rawfiles,round(cumsum(fileinfo$size)/(10^9)/75))
 
-#rfl<-rawfiles<-rawfiles[!rawfiles %in% indfiles]
-rfl<-rawfiles<-rawfiles[!rawfiles %in% c(indfiles,aggfiles,aggfiles2)]
+for(i in 1:length(rawfiles)){
+  rawfiles<-rfs[[i]]
+  
+  rawfiles<-batchlist<-sapply(rawfiles,function(x){x<-strsplit(x,"/")[[1]][3];x})
+  indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
+  aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
+  rfl<-rawfiles<-rawfiles[!rawfiles %in% c(indexfiles,aggfiles,alldone)]
+  
+  pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
+  
+  rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
+  
+  terraOptions(memfrac = .9,datatype = "INT1U")
 
 
-pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
-rawfiles<-paste(rawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
-
-terraOptions(memfrac = .9,datatype = "INT1U")
-
-
-rawfiles<-gsub("N:/mpsg_naip","C:/TEMP/0_raw",rawfiles)
-indpath<-"C:/TEMP/1_intermediate"
-aggpath<-"D:/LocalNaip/2_aggregated"
+  rawfiles<-gsub("N:/mpsg_naip","C:/TEMP/0_raw",rawfiles)
+  indpath<-"C:/TEMP/1_intermediate"
+  aggpath<-"D:/LocalNaip/2_aggregated"
 
 setwd(localpath)
 
 gc()
 library(snowfall)
+
+
+GetBandIndices(rawfiles[1],ncpu = 1,outpath = indpath)
+
 time2<-system.time({
   sfInit(parallel = T, cpus = 10)
   sfLibrary(AFFT)
@@ -56,7 +62,7 @@ time2<-system.time({
   write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
   sfClusterApplyLB(rawfiles,function(x){
     terraOptions(memfrac = .9/5,datatype = "FLT4S")
-    GetBandIndices(x,ncpu = 1,outpath = indpath)
+    GetBandIndices(x,ncpu = 1,outpath = localcpath)
     write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
     donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
     donefiles<-donefiles[2:length(donefiles)]

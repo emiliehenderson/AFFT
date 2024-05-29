@@ -110,6 +110,7 @@ GetMetrics1<-function(rasterfile,
         gc()
   }else{
     gc()
+    
     indlist<-lapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,outpath)})
     gc()
   }                               
