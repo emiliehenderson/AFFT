@@ -225,10 +225,8 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,nc
   }else{
     
     terraOptions(memfrac = .9,datatype = "INT4S")
-    browser()
     ol<-lapply(nm,function(x,f1=fact1){
       r1<-rast(rl[x,1],lyrs = as.numeric(rl[x,2]))
-      browser()
       outrast<-aggregate(r1,fact = f1,fun = aggfun,zm1=donut)
       nm<-c(paste("f-",unique(round(donut,2)),sep = ""),
             paste("fp-",unique(round(donut,2)),sep = ""),
