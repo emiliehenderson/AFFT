@@ -160,16 +160,14 @@ GetAFFT<-function(filelist,
                   aggpath = "2_aggregated"){
   fn<-strsplit(filelist[1],"/")[[1]];fn<-fn[length(fn)]
   r0<-rast(paste(rawpath,fn,sep = "/"))
-  res1<-res(r0)[1]
-  fact1<-outres/res1
- # donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
-   donut<-round(MakeDonut(zradii,res1,fact1,return.rast = F),2)
+  res1<-round(res(r0)[1],1)
+  fact1<-round(outres/res1,0)
+  donut<-round(MakeDonut(zradii,res1,fact1,return.rast = F),2)
   
   aggfun1<-function(x,zm1 = donut,na.rm = T){
     if(!any(is.na(x)) & length(x)== length(donut)){
       x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
       ff1<-c(abs(gsignal::fftshift(fft(x - mean(x)),MARGIN =c(1,2))^2))
-      #y<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
       y<-tapply(ff1,zm1,mean)
       yb<-scales::rescale(tapply(ff1,zm1,sum)/sum(ff1),from =c(0,1),to =c(0,254))
       y2<-c(mean(x),quantile(x,c(.025,.5,.95)))
@@ -212,7 +210,7 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,nc
       terraOptions(memfrac = 1/7.01,datatype = "INT4S")
       r1<-rast(rl[x,1])
       r1<-terra::subset(r1,rl[x,2])
-      outrast<-aggregate(r1,fact = f1,
+      outrast<-aggregate(r1,fact = round(f1,0),
                     fun = aggfun,zm1=donut)
       nm<-c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","med","Q95","sd","skew","kurt"))
       names(outrast)<-nm#c(paste("f-",unique(round(donut,2)),sep = ""),paste("fp-",unique(round(donut,2)),sep = ""),c("mean","Q025","Med","Q95","sd","skew","kurt"))
@@ -228,7 +226,7 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,nc
     terraOptions(memfrac = .9,datatype = "INT4S")
     ol<-lapply(nm,function(x,f1=fact1){
       r1<-rast(rl[x,1],lyrs = as.numeric(rl[x,2]))
-      outrast<-aggregate(r1,fact = f1,fun = aggfun,zm1=donut)
+      outrast<-aggregate(r1,fact = round(f1,0),fun = aggfun,zm1=donut)
       nm<-c(paste("f-",unique(round(donut,2)),sep = ""),
             paste("fp-",unique(round(donut,2)),sep = ""),
             c("mean","Q025","med","Q95","sd","skew","kurt"))
@@ -357,7 +355,7 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
 #' @return matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
 #'
 MakeDonut<-function(zr,res1,fact1,return.rast = T){
-  d<-do.call(c,lapply(zr,function(r,res2 = res1[1],f2= fact1[1]){
+  d<-do.call(c,lapply(zr,function(r,res2 = round(res1[1],1),f2= round(fact1[1],0)){
     size <- f2*res2[1]
     e = c(-size/2,size/2,-size/2,size/2)
     pt1<-terra::vect(rbind(c(0,0)))
