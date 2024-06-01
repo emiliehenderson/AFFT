@@ -1,22 +1,24 @@
-library(terra);library(AFFT)
+library(terra);library(AFFT);library(SDMap)
 rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 localcpath<-"C:/TEMP"
 rawpath<-"N:/mpsg_naip"
-localrawpath<-"C:/TEMP/0_raw"
-indpath<-paste(localcpath,"1_intermediate",sep = "/")
-indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
-aggpath<-paste(localpath,"2_aggregated",sep = "/")
-aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
+localrawpath<-MakeDirIfNeeded("0_raw",localcpath,goto = F)
+indpath<-MakeDirIfNeeded("1_intermediate",localcpath,goto = T)
+indpaths<-sapply(c("ndvi","ndgr","ndng","bri"),function(x){MakeDirIfNeeded(x,goto = F)})
+
+aggpath<-MakeDirIfNeeded("2_aggregated",localpath,goto = T)
+aggpaths<-sapply(c("r","g","n","ndvi","ndgr","ndng","bri"),function(x){MakeDirIfNeeded(x,goto = F)})
 aggpaths2<-paste("N:/mpsg_naip_afft/2_aggregated",c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 
-batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
-print(batches)
-write.csv(batches,"N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 
-curbatches<-c(12)
+
+batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
+View(batches)
+
+curbatches<-c(14)
 rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
 alldone<-list.files(aggpaths2)
 rawfiles<-rawfiles[!rawfiles %in% paste("N:/mpsg_naip/",alldone,sep = "")]
@@ -25,7 +27,7 @@ fileinfo<-file.info(rawfiles)
 
 rfs<-split(rawfiles,round(cumsum(fileinfo$size)/(10^9)/75))
 
-for(i in 1:length(rawfiles)){
+for(i in 1:length(rfs)){
   rawfiles<-rfs[[i]]
   rawfiles<-batchlist<-sapply(rawfiles,function(x){x<-strsplit(x,"/")[[1]][3];x})
   indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
@@ -86,7 +88,11 @@ for(i in 1:length(rawfiles)){
   indexfiles<-indexfiles[!indexfiles %in% aggfiles]
   
   library(snowfall)
-  
+  # GetAFFT(indexfiles[1],
+  #         rawpath = localrawpath,
+  #         indpath = paste(localcpath,"1_intermediate",sep = "/"),
+  #         aggpath = paste(localpath,"2_aggregated",sep = "/"),
+  #         ncpu = 1,overwrite = T)
   time2<-system.time({
     sfInit(parallel = T, cpus = 15)
     sfLibrary(AFFT)
