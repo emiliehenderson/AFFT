@@ -159,10 +159,9 @@ GetAFFT<-function(filelist,
                   aggpath = "2_aggregated"){
   fn<-strsplit(filelist[1],"/")[[1]];fn<-fn[length(fn)]
   r0<-rast(paste(rawpath,fn,sep = "/"))
-  res1<-res(r0)[1]
-  fact1<-outres/res1
+  res1<-round(res(r0)[1],1)
+  fact1<-round(outres/res1,0)
   donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
-  
   aggfun1<-function(x,zm1 = donut){
     if(!any(is.na(x))){
       x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
@@ -366,7 +365,8 @@ MakeDonut<-function(zr,res1,fact1){
     y<-y * (1/r) * size/2
   }))
   d<-terra::app(d,function(x){y<-max(x,na.rm = T)})
-  d<-matrix(c(d[]),nrow = fact1)
+  ed<-extract(d,vect(ext(d)))
+  d<-matrix(c(ed[,2]),nrow = round(fact1,0))
   d
 }
 ## MergeAggregatedAirphotos ------------

@@ -31,7 +31,7 @@ fileinfo<-file.info(rawfiles)
 
 rfs<-split(rawfiles,round(cumsum(fileinfo$size)/(10^9)/75))
 
-for(i in 1:length(rawfiles)){
+for(i in 2:length(rawfiles)){
   rawfiles<-rfs[[i]]
   
   rawfiles<-batchlist<-sapply(rawfiles,function(x){x<-strsplit(x,"/")[[1]][3];x})
@@ -105,11 +105,4 @@ junk<-lapply(aggfiles,function(x,p = 2,band = "ndvi"){
   })
 
 
-
-
-## Things to think about ----------------
-### 1) Workflow. Should GetBandIndices be rolled in to GetAFFT?
-### 2) Parallel handling. GetBandIndices currently uses 4 cpus (one per index). Could re-jigger the parallelization to send each image out to a separate cpu, but how would memory work?
-### 3) File structure -- improvements needed?
-### 4) Tracking -- how to keep track of what is and isn't done when working on multiple platforms?
 
