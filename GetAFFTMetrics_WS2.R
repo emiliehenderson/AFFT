@@ -18,7 +18,7 @@ aggpaths2<-paste("N:/mpsg_naip_afft/2_aggregated",c("r","g","n","ndvi","bri","nd
 batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 View(batches)
 
-curbatches<-c(14)
+curbatches<-c(1:15)
 rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
 alldone<-list.files(aggpaths2)
 rawfiles<-rawfiles[!rawfiles %in% paste("N:/mpsg_naip/",alldone,sep = "")]
@@ -37,48 +37,48 @@ for(i in 1:length(rfs)){
   rfl<-rawfiles<-rawfiles[!rawfiles %in% c(indexfiles,aggfiles,alldone)]
   
   if(length(rawfiles)>0){
-  pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
+    pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
+    
+    rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
+    
+    terraOptions(memfrac = .9,datatype = "INT1U")
+    gc()
+    library(snowfall)
   
-  rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
-  
-  terraOptions(memfrac = .9,datatype = "INT1U")
-  gc()
-  library(snowfall)
-
-  rawfiles<-gsub("N:/mpsg_naip","C:/TEMP/0_raw",rawfiles)
-  time2<-system.time({
-  sfInit(parallel = T, cpus = 10)
-  sfLibrary(AFFT)
-  sfLibrary(terra)
-  sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","rawfiles"))
-  stime<-Sys.time()
-  sfExport("stime")
-  write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
-  sfClusterApplyLB(rawfiles,function(x){
-    terraOptions(memfrac = .9/5,datatype = "FLT4S")
-    GetBandIndices(x,ncpu = 1,outpath = localcpath)
-    write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
-    donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
-    donefiles<-donefiles[2:length(donefiles)]
-    te<-difftime(Sys.time(), stime,units = "secs")
-    prop.done<-length(donefiles)/length(rawfiles)
-    tr<-te*(1-prop.done)/(prop.done)
-    hms<-SDMap::SecsToHMS(tr)
-    write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = F)
-    write("",paste(localpath,"progress.txt",sep = "/"),append = T)
-    hms<-SDMap::SecsToHMS(te)
-    
-    write("Time Elapsed:",paste(localpath,"progress.txt",sep = "/"),append = T)
-    write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
-    
-    hms<-SDMap::SecsToHMS(tr)
-    
-    write("Time Remaining:",paste(localpath,"progress.txt",sep = "/"),append = T)
-    write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
-  })
-  sfStop()
-})
-}
+    rawfiles<-gsub("N:/mpsg_naip","C:/TEMP/0_raw",rawfiles)
+    time2<-system.time({
+      sfInit(parallel = T, cpus = 10)
+      sfLibrary(AFFT)
+      sfLibrary(terra)
+      sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","rawfiles"))
+      stime<-Sys.time()
+      sfExport("stime")
+      write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
+      sfClusterApplyLB(rawfiles,function(x){
+        terraOptions(memfrac = .9/5,datatype = "FLT4S")
+        GetBandIndices(x,ncpu = 1,outpath = localcpath)
+        write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
+        donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
+        donefiles<-donefiles[2:length(donefiles)]
+        te<-difftime(Sys.time(), stime,units = "secs")
+        prop.done<-length(donefiles)/length(rawfiles)
+        tr<-te*(1-prop.done)/(prop.done)
+        hms<-SDMap::SecsToHMS(tr)
+        write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = F)
+        write("",paste(localpath,"progress.txt",sep = "/"),append = T)
+        hms<-SDMap::SecsToHMS(te)
+        
+        write("Time Elapsed:",paste(localpath,"progress.txt",sep = "/"),append = T)
+        write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+        
+        hms<-SDMap::SecsToHMS(tr)
+        
+        write("Time Remaining:",paste(localpath,"progress.txt",sep = "/"),append = T)
+        write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+      })
+      sfStop()
+    })
+  } 
 
 
   indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
