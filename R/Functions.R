@@ -224,13 +224,14 @@ GetAFFT1<-function(r,zradii =c(2,6,56),outres = 30,fact1,donut ,overwrite = T,nc
     
     terraOptions(memfrac = .9,datatype = "INT4S")
     ol<-lapply(nm,function(x,f1=fact1){
+      rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
+      cat(paste(ap,x,rn,sep = "/"))
       r1<-rast(rl[x,1],lyrs = as.numeric(rl[x,2]))
       outrast<-aggregate(r1,fact = round(f1,0),fun = aggfun,zm1=donut)
       nm<-c(paste("f-",unique(round(donut,2)),sep = ""),
             paste("fp-",unique(round(donut,2)),sep = ""),
             c("mean","Q025","med","Q95","sd","skew","kurt"))
       names(outrast)<-nm
-      rn<-strsplit(r,"/")[[1]];rn<-rn[length(rn)]
       writeRaster(outrast,filename = paste(ap,x,rn,sep = "/"),datatype = "INT4S",overwrite = overwrite)
       rm(list =c("outrast","r1"))
       gc()

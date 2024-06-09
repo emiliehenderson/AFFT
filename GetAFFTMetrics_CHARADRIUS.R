@@ -27,28 +27,19 @@ fileinfo<-file.info(rawfiles)
 
 rfs<-split(rawfiles,round(cumsum(fileinfo$size)/(10^9)/75))
 
-for(i in 2:length(rfs)){
- 
+for(i in 1:length(rfs)){
   rawfiles<-rfs[[i]]
-  
-  #pbapply::pblapply(indexfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
   rawfiles<-batchlist<-sapply(rawfiles,function(x){x<-strsplit(x,"/")[[1]][3];x})
-  #indexfiles<-list.files(ndvipath)
   indfiles<-table(list.files(indpaths));indfiles<-names(indfiles[indfiles>3])
   aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
-  
   rfl<-rawfiles<-rawfiles[!rawfiles %in% indfiles & !rawfiles %in% aggfiles]
   
-  pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"))})
-  
-  rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
-  
-  terraOptions(memfrac = .9,datatype = "INT1U")
-  
-  
-  setwd(localpath)
-  
-  GetBandIndices(rawfiles,ncpu = 4,outpath = localcpath)
+  if(length(rawfiles)>0){
+    pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
+    rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
+    terraOptions(memfrac = .9,datatype = "INT1U")
+    GetBandIndices(rawfiles,ncpu = 4,outpath = localcpath)
+  }
   
   indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
   aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
@@ -57,18 +48,15 @@ for(i in 2:length(rfs)){
   aggfiles<-list.files(paste(aggpath,list.files(aggpath),sep = "/"),full.names = F)
   aggfiles<-names(table(aggfiles)[table(aggfiles)==7])
   indexfiles<-indexfiles[!indexfiles %in% aggfiles]
-  ind<-0
-  
   library(snowfall)
   
-  localrawpath<-"C:/TEMP/0_raw"
-  localcpath<-"C:/TEMP"
-  
-  GetAFFT(indexfiles,
-          rawpath = localrawpath,
-          indpath = paste(localcpath,"1_intermediate",sep = "/"),
-          aggpath = paste(localpath,"2_aggregated",sep = "/"),
-          ncpu = 7,overwrite = T)
+  if(length(indexfiles)>0){
+    GetAFFT(indexfiles,
+            rawpath = localrawpath,
+            indpath = paste(localcpath,"1_intermediate",sep = "/"),
+            aggpath = paste(localpath,"2_aggregated",sep = "/"),
+            ncpu = 7,overwrite = T)
+  }
   
   setwd(localrawpath);fl<-list.files();file.remove(fl);setwd("..")
   setwd("1_intermediate/ndvi");fl<-list.files();file.remove(fl);setwd("..")
