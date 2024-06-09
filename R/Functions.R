@@ -110,6 +110,7 @@ GetMetrics1<-function(rasterfile,
         gc()
   }else{
     gc()
+    
     indlist<-lapply(nm,function(myfun,rf = rasterfile){fl[[myfun]](rf,outpath)})
     gc()
   }                               
@@ -161,8 +162,8 @@ GetAFFT<-function(filelist,
   r0<-rast(paste(rawpath,fn,sep = "/"))
   res1<-round(res(r0)[1],1)
   fact1<-round(outres/res1,0)
+
   donut<-round(MakeDonut(zradii,res1,fact1,return.rast = F),2)
-  
   aggfun1<-function(x,zm1 = donut,na.rm = T){
     if(!any(is.na(x)) & length(x)== length(donut)){
       x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
@@ -367,6 +368,7 @@ MakeDonut<-function(zr,res1,fact1,return.rast = T){
   d<-terra::app(d,function(x){y<-max(x,na.rm = T)})
   if(return.rast)return(d)
   else{return(d[])}
+
 }
 
 ## MergeAggregatedAirphotos ------------

@@ -18,18 +18,18 @@ aggpaths2<-paste("N:/mpsg_naip_afft/2_aggregated",c("r","g","n","ndvi","bri","nd
 batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
 View(batches)
 
-curbatches<-c(14)
+
+curbatches<-c(15)
 rawfiles<-do.call(c,lapply(curbatches,function(curbatch){read.csv(paste("N:/mpsg_naip_batch_files/naip_batch_",curbatch,".txt",sep = ""))[,1]}))
-alldone<-list.files(aggpaths2)
+alldone<-c(list.files(aggpaths2),list.files(aggpaths))
 rawfiles<-rawfiles[!rawfiles %in% paste("N:/mpsg_naip/",alldone,sep = "")]
 
 fileinfo<-file.info(rawfiles)
 
-rfs<-split(rawfiles,round(cumsum(fileinfo$size)/(10^9)/75))
+rfs<-split(rawfiles,round(cumsum(fileinfo$size)/(10^9)/300))
 
 for(i in 1:length(rfs)){
   cat("#############################\n",i,"out of", length(rfs),"chunks in batch", curbatches,"\n")
-  
   rawfiles<-rfs[[i]]
   rawfiles<-batchlist<-sapply(rawfiles,function(x){x<-strsplit(x,"/")[[1]][3];x})
   indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
@@ -37,84 +37,31 @@ for(i in 1:length(rfs)){
   rfl<-rawfiles<-rawfiles[!rawfiles %in% c(indexfiles,aggfiles,alldone)]
   
   if(length(rawfiles)>0){
-  pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
-  
-  rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
-  
-  terraOptions(memfrac = .9,datatype = "INT1U")
-  gc()
-  library(snowfall)
-
-  rawfiles<-gsub("N:/mpsg_naip","C:/TEMP/0_raw",rawfiles)
-  time2<-system.time({
-  sfInit(parallel = T, cpus = 10)
-  sfLibrary(AFFT)
-  sfLibrary(terra)
-  sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","rawfiles"))
-  stime<-Sys.time()
-  sfExport("stime")
-  write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
-  sfClusterApplyLB(rawfiles,function(x){
-    terraOptions(memfrac = .9/5,datatype = "FLT4S")
-    GetBandIndices(x,ncpu = 1,outpath = localcpath)
-    write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
-    donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
-    donefiles<-donefiles[2:length(donefiles)]
-    te<-difftime(Sys.time(), stime,units = "secs")
-    prop.done<-length(donefiles)/length(rawfiles)
-    tr<-te*(1-prop.done)/(prop.done)
-    hms<-SDMap::SecsToHMS(tr)
-    write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = F)
-    write("",paste(localpath,"progress.txt",sep = "/"),append = T)
-    hms<-SDMap::SecsToHMS(te)
+    pbapply::pblapply(rawfiles,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
     
-    write("Time Elapsed:",paste(localpath,"progress.txt",sep = "/"),append = T)
-    write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+    rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-rfl
     
-    hms<-SDMap::SecsToHMS(tr)
-    
-    write("Time Remaining:",paste(localpath,"progress.txt",sep = "/"),append = T)
-    write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
-  })
-  sfStop()
-})
-}
-
-
-  indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
-  aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
+    terraOptions(memfrac = .9,datatype = "INT1U")
+    gc()
+    library(snowfall)
   
-  indexfiles<-indexfiles[indexfiles %in% batchlist]
-  aggfiles<-list.files(paste(aggpath,list.files(aggpath),sep = "/"),full.names = F)
-  aggfiles<-names(table(aggfiles)[table(aggfiles)==7])
-  indexfiles<-indexfiles[!indexfiles %in% aggfiles]
-  
-  library(snowfall)
-  # GetAFFT(indexfiles[1],
-  #         rawpath = localrawpath,
-  #         indpath = paste(localcpath,"1_intermediate",sep = "/"),
-  #         aggpath = paste(localpath,"2_aggregated",sep = "/"),
-  #         ncpu = 1,overwrite = T)
-  time2<-system.time({
+    rawfiles<-gsub("N:/mpsg_naip","C:/TEMP/0_raw",rawfiles)
+    time2<-system.time({
     sfInit(parallel = T, cpus = 15)
     sfLibrary(AFFT)
     sfLibrary(terra)
-    sfExport(list =c("rawpath","aggpath","localpath","indexfiles","localrawpath","localcpath"))
+    sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","rawfiles"))
     stime<-Sys.time()
     sfExport("stime")
     write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
-    sfClusterApplyLB(indexfiles,function(x){
-      GetAFFT(x,
-                rawpath = localrawpath,
-                indpath = paste(localcpath,"1_intermediate",sep = "/"),
-                aggpath = paste(localpath,"2_aggregated",sep = "/"),
-                ncpu = 1,overwrite = T
-                )
+    sfClusterApplyLB(rawfiles,function(x){
+      terraOptions(memfrac = .9/5,datatype = "FLT4S")
+      GetBandIndices(x,ncpu = 1,outpath = localcpath)
       write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
       donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
       donefiles<-donefiles[2:length(donefiles)]
       te<-difftime(Sys.time(), stime,units = "secs")
-      prop.done<-length(donefiles)/length(indexfiles)
+      prop.done<-length(donefiles)/length(rawfiles)
       tr<-te*(1-prop.done)/(prop.done)
       hms<-SDMap::SecsToHMS(tr)
       write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = F)
@@ -131,10 +78,62 @@ for(i in 1:length(rfs)){
     })
     sfStop()
   })
+  }
+
+
+  indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
+  aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
   
-  setwd(localrawpath);fl<-list.files();file.remove(fl);setwd("..")
-  fl<-list.files(indpaths,full.names = T);file.remove(fl)
-  setwd(localpath)
+  indexfiles<-indexfiles[indexfiles %in% batchlist]
+  aggfiles<-list.files(paste(aggpath,list.files(aggpath),sep = "/"),full.names = F)
+  aggfiles<-names(table(aggfiles)[table(aggfiles)==7])
+  indexfiles<-indexfiles[!indexfiles %in% aggfiles]
+  
+  if(length(indexfiles)>0){
+    library(snowfall)
+    
+    time2<-system.time({
+      sfInit(parallel = T, cpus = 22)
+      sfLibrary(AFFT)
+      sfLibrary(terra)
+      sfExport(list =c("rawpath","aggpath","localpath","indexfiles","localrawpath","localcpath"))
+      stime<-Sys.time()
+      sfExport("stime")
+      write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
+      sfClusterApplyLB(indexfiles,function(x){
+        GetAFFT(x,
+                rawpath = localrawpath,
+                indpath = paste(localcpath,"1_intermediate",sep = "/"),
+                aggpath = paste(localpath,"2_aggregated",sep = "/"),
+                ncpu = 1,overwrite = T
+        )
+        write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
+        donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
+        donefiles<-donefiles[2:length(donefiles)]
+        te<-difftime(Sys.time(), stime,units = "secs")
+        prop.done<-length(donefiles)/length(indexfiles)
+        tr<-te*(1-prop.done)/(prop.done)
+        hms<-SDMap::SecsToHMS(tr)
+        write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = F)
+        write("",paste(localpath,"progress.txt",sep = "/"),append = T)
+        hms<-SDMap::SecsToHMS(te)
+        
+        write("Time Elapsed:",paste(localpath,"progress.txt",sep = "/"),append = T)
+        write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+        
+        hms<-SDMap::SecsToHMS(tr)
+        
+        write("Time Remaining:",paste(localpath,"progress.txt",sep = "/"),append = T)
+        write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+      })
+      sfStop()
+    })
+    
+    setwd(localrawpath);fl<-list.files();file.remove(fl);setwd("..")
+    fl<-list.files(indpaths,full.names = T);file.remove(fl)
+    setwd(localpath)
+  }
+ 
 }
 
 ## Spot-check aggregated files -------------
