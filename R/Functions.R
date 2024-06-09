@@ -98,9 +98,9 @@ GetBandIndices<-function(filelist,indfuns = indexFuns,outpath = "1_intermediate"
 #'
 GetMetrics1<-function(rasterfile,
                       outpath = "1_intermediate",
-                      fl = indexFuns,parallel = F){
+                      fl = indexFuns,parallel = F,quiet = T){
   require(terra)
-  cat("\n",rasterfile,"\n")
+  if(!quiet)cat("\n",rasterfile,"\n")
   
   nm<-names(fl);names(nm)<-nm
   if(parallel){
