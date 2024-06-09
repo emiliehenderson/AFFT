@@ -1,19 +1,22 @@
-library(terra);library(AFFT)
+library(terra);library(AFFT);library(SDMap)
 rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 localcpath<-"C:/TEMP"
 rawpath<-"N:/mpsg_naip"
-localrawpath<-"C:/TEMP/0_raw"
-indpath<-paste(localcpath,"1_intermediate",sep = "/")
-indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
-aggpath<-paste(localpath,"2_aggregated",sep = "/")
-aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
+localrawpath<-MakeDirIfNeeded("0_raw",localcpath,goto = F)
+indpath<-MakeDirIfNeeded("1_intermediate",localcpath,goto = T)
+indpaths<-sapply(c("ndvi","ndgr","ndng","bri"),function(x){MakeDirIfNeeded(x,goto = F)})
+
+aggpath<-MakeDirIfNeeded("2_aggregated",localpath,goto = T)
+aggpaths<-sapply(c("r","g","n","ndvi","ndgr","ndng","bri"),function(x){MakeDirIfNeeded(x,goto = F)})
 aggpaths2<-paste("N:/mpsg_naip_afft/2_aggregated",c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 
-batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")[,c("Batch","Status","Location","Notes")]
-print(batches)
+
+
+batches<-read.csv("N:/mpsg_naip_batch_files/BatchLog_v2.csv")
+View(batches)
 
 
 curbatches<-c(15)

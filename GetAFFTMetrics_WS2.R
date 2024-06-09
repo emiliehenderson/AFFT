@@ -28,6 +28,8 @@ fileinfo<-file.info(rawfiles)
 rfs<-split(rawfiles,round(cumsum(fileinfo$size)/(10^9)/75))
 
 for(i in 1:length(rfs)){
+  cat("#############################\n",i,"out of", length(rfs),"chunks in batch", curbatches,"\n")
+  
   rawfiles<-rfs[[i]]
   rawfiles<-batchlist<-sapply(rawfiles,function(x){x<-strsplit(x,"/")[[1]][3];x})
   indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
