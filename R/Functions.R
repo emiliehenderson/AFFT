@@ -153,7 +153,7 @@ GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","b
 #' @return raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
 #'
 GetAFFT<-function(filelist,
-                  zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 30,
+                  zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 15,
                   overwrite = T,ncpu = 7,
                   rawpath = "0_raw",
                   indpath = "1_intermediate",
@@ -356,7 +356,8 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
 #' @return matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
 #'
 MakeDonut<-function(zr,res1,fact1,return.rast = T){
-  d<-do.call(c,lapply(zr,function(r,res2 = round(res1[1],1),f2= round(fact1[1],0)){
+  d<-do.call(c,lapply(zr,function(r,res2 = round(res1[1],0),f2= round(fact1[1],0)){
+    browser()
     size <- f2*res2[1]
     e = c(-size/2,size/2,-size/2,size/2)
     pt1<-terra::vect(rbind(c(0,0)))
@@ -370,7 +371,50 @@ MakeDonut<-function(zr,res1,fact1,return.rast = T){
   else{return(d[])}
 
 }
+## MakeDonut2 ------------
+#' Used within GetMetrics.
+#'
+#' @description Creates a matrix whose outer size matches the dimension of the image to be summarized (in this case, an airphoto image covering exactly one landsat pixel)
+#'
+#' @export
+#'
+#' @param zr Radii for nested circles
+#' @param res1 output resolution (full size indicated by the output matrix)
+#' @param inrast input raster of imagery to be summarized (used to get resolution)
+#' @seealso \code{\link{GetMetrics}}
+#' @return matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
+#'
+MakeDonut2<-function(zr,res1,inrast){
+  fact1<-res(inrast)[1]
+  r2<-round(res1[1],0)
+  f2a<-round(fact1[1],0)
+  size <- f2a*r2
+  e = vect(ext(c(-size/2,size/2,-size/2,size/2)))
+  ya<-terra::rast(nrows=size/r2, ncols=size/r2, nlyrs=1,  extent = terra::ext(e), 
+                  resolution = r2,crs = "EPSG:26910")
+  d<-lapply(zr,function(r,res2 = r2,f2= f2a){
+    pt1<-terra::vect(rbind(c(0,0)),crs = "EPSG:26910")
 
+    y<-terra::buffer(pt1, r)
+    y$sz<-(1/r) * size/2
+    y
+  })
+   z<-d[[1]]
+   for(i in 2:length(d)){z<-union(z,d[[i]])}
+   z<-union(z)
+   
+   z<-crop(z,e)
+   
+   
+   z$scale<-(1/zr[length(zr):1]) * size/2
+   
+   terraOptions(datatype = "FLT4S")
+   p<-rast(matrix(nrow = r2,ncol = r2),crs = "EPSG:2910",extent = ext(e))
+   
+   z<-rasterize(z,p,"scale")
+  return(z[])
+  
+}
 ## MergeAggregatedAirphotos ------------
 #' Used after GetMetrics.
 #'

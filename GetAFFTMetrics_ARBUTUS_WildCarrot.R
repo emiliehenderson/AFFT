@@ -3,7 +3,7 @@ rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 localcpath<-"C:/TEMP"
-rawpath<-"N:/mpsg_naip_query2"
+rawpath<-"J:/WildCarrot/2018_1ft_NAIP_raw/43120"
 localrawpath<-"C:/TEMP/0_raw"
 indpath<-paste(localcpath,"1_intermediate",sep = "/")
 indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
@@ -12,27 +12,27 @@ aggpath<-paste(localpath,"2_aggregated",sep = "/")
 aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 
 
-rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
+#rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
 
 #rawfilebatch[117:nrow(rawfilebatch),c(2:3)]<-NA
-write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
+#write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
 
 while(any(rawfilebatch$Status %in% NA)){
-  rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
-  rawfiles<-rawfilebatch[is.na(rawfilebatch$Status),1]
-  curfilelist<-rawfiles<-rawfiles[1:500]
-  rawfilebatch$Status[rawfilebatch$rawfiles%in%rawfiles]<-"Running"
-  rawfilebatch$Location[rawfilebatch$rawfiles%in%rawfiles]<-"Arbutus"
-  write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
-  cat("Files Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
-  cat("Files Remaining:",sum(rawfilebatch$Status %in% NA),"\n")
+ # rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
+  rawfiles<-list.files(rawpath,pattern = ".tif")#rawfilebatch[is.na(rawfilebatch$Status),1]
+  curfilelist<-rawfiles<-rawfiles[1:5]
+  #rawfilebatch$Status[rawfilebatch$rawfiles%in%rawfiles]<-"Running"
+  #rawfilebatch$Location[rawfilebatch$rawfiles%in%rawfiles]<-"Arbutus"
+  #write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
+  #cat("Files Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
+  #cat("Files Remaining:",sum(rawfilebatch$Status %in% NA),"\n")
   cat("Current Batch:", length(rawfiles),"\n")
   
   if(length(rawfiles)>0){
     rl<-list.files(localrawpath)
-    copy.me<-rawfiles[!rawfiles %in% list.files(localrawpath)]
+    copy.me<-rawfiles[!rawfiles %in% list.files(localrawpath,pattern = ".tif")]
     tmp<-pbapply::pblapply(copy.me,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
-    rawfiles<-list.files(localrawpath)
+    rawfiles<-list.files(localrawpath,pattern = ".tif")
     rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-curfilelist
     
     terraOptions(memfrac = .9,datatype = "INT1U")
@@ -44,7 +44,7 @@ while(any(rawfilebatch$Status %in% NA)){
     if(length(need.index) > 0){
       library(snowfall)
     
-      sfInit(parallel = T, cpus = 15)
+      sfInit(parallel = T, cpus = min(length(need.index),15))
       sfLibrary(AFFT)
       sfLibrary(terra)
       sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","indpaths","rawfiles"))
@@ -78,6 +78,8 @@ while(any(rawfilebatch$Status %in% NA)){
       sfStop()
     }
   }
+  
+  
   indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
   aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
   aggfiles<-list.files(paste(aggpath,list.files(aggpath),sep = "/"),full.names = F)
@@ -86,7 +88,7 @@ while(any(rawfilebatch$Status %in% NA)){
   
   if(length(indexfiles)>0){
     library(snowfall)
-    sfInit(parallel = T, cpus = 22)
+    sfInit(parallel = T, cpus = min(length(indexfiles),22))
     sfLibrary(AFFT)
     sfLibrary(terra)
     sfExport(list =c("rawpath","aggpath","localpath","indexfiles","localrawpath","localcpath","indpaths","rawfiles"))
@@ -95,6 +97,8 @@ while(any(rawfilebatch$Status %in% NA)){
     write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
     sfClusterApplyLB(indexfiles,function(x){
       GetAFFT(x,
+              zradii = c(.33,0.75, 1.25, 2.5, 5, 10,60),
+              outres = 10,
               rawpath = localrawpath,
               indpath = paste(localcpath,"1_intermediate",sep = "/"),
               aggpath = paste(localpath,"2_aggregated",sep = "/"),
