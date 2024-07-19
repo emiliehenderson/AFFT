@@ -160,12 +160,6 @@
                 "ndng_f-12","r_f-1.5","r_Q025","ndgr_fp-0.25",
                 "n_Q025","r_Q95","r_mean","bri_Q025","bri_med",
                 "g_fp-0.25","ndng_fp-0.25","g_Q025"
-                #"ndng_Q025",
-                #"ndng_fp-6","g_fp-6",
-                #"r_med","bri_mean","g_Q95",
-                #"ndng_Q95","g_med","ndng_med","bri_mean",
-                #"ndng_Q025","g_Q025","g_mean","g_med",
-                #"ndng_mean","ndgr_fp-3"
                 )
     #drop.me3<-drop.me3[!drop.me3 %in% add.back]
     drop.me4<-c('bri_f-1.5',
@@ -178,7 +172,7 @@
                 "ndgr_f-12","ndgr_f-6","ndgr_f-3","ndgr_fp1.5","ndgr_sd",
                 "r_fp-20","r_fp-12","r_fp-3","r_fp-6",
                 "n_fp-20","n_fp-12","n_fp-6")
-    mat3<-mat3[,!colnames(mat3) %in% c(drop.me0,drop.me2,drop.me4)]
+    mat3<-mat1[,!colnames(mat1) %in% c(drop.me0,drop.me2,drop.me4)]
     pca1<-princomp(mat3)
      
     save(pca1,file = "D:/LocalNaip/PCA/pca1.RData")

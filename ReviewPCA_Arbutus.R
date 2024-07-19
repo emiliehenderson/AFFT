@@ -18,7 +18,22 @@ fl<-list.files(pattern = ".tif")
 # setwd("C:/TEMP")
 fl<-list.files("C:/TEMP/PCA3",full.names = T,pattern = "f.tif");v1<-vrt(fl)
 print(dim(v1))
-for(i in 0:(dim(v1)[3]/3 - 1)){par(mfrow =c(1,2));plotRGB(subset(v1,1:3 + i*3),stretch = "lin");plot(vect(e1),add = T);plotRGB(subset(v1,1:3+i*3),stretch = "lin",ext = e1);readline(i*3+1)}
+for(i in 0:(dim(v1)[3]/3 - 1)){par(mfrow =c(1,3))
+  plotRGB(subset(v1,1:3 + i*3),stretch = "lin")
+  plot(vect(e2),add = T)
+  plotRGB(subset(v1,1:3+i*3),stretch = "lin",ext = e2)
+  plot(vect(e3),add = T)
+  plotRGB(subset(v1,1:3+i*3),stretch = "lin",ext = e3)
+          readline(i*3+1)}
+
+par(mfrow =c(1,3))
+for(i in 0:2){
+  plotRGB(subset(v1,1:3 + i*3),stretch = "hist",main = paste("Components",i+1,"-",i+3))
+  plot(bnd0,add = T,border = "red")
+}
+
+
+
 #save.image("C:/TEMP/PCA3/CurrentPCA_WD.RData")
 #load(list.files("PCA3",pattern = "pca",full.names = T))
 tmp<-cbind(pca1$loadings)
@@ -26,13 +41,14 @@ tmp<-cbind(pca1$loadings)
 tmp<-tmp[order(abs(tmp[,1]),decreasing = T),]
 nm<-rownames(tmp);names(nm)<-nm
 topaxis<-lapply(nm,function(x){
-  layout.show(lo<-layout(matrix(c(1,2,1,3),byrow = F,nrow = 2),heights =c(1.5,4)))
+  layout.show(lo<-layout(matrix(c(1,2,1,3,1,4),byrow = F,nrow = 2),heights =c(1.5,4)))
   par(mar =c(3,2,3,0))
   barplot(tmp[x,,drop = F], las = 2, cex.names = .5,main = x)
   r1<-rast(paste("C:/TEMP/Corrected/",x,".vrt",sep = ""))
   par(mar =c(0,0,0,0))
-  plot(r1, legend = F)
-  plot(r1,ext = e1, legend = F)
+  plot(r1, legend = F);plot(vect(e2),add = T)
+  plot(r1,ext = e2, legend = F);plot(vect(e3),add = T)
+  plot(r1,ext = e3, legend = F);plot(vect(e3),add = T)
   readline(x)
   return(colnames(tmp[which.max(tmp[x,])]))})
 
