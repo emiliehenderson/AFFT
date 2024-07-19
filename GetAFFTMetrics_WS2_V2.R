@@ -14,8 +14,8 @@ aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 
 rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
 
-#rawfilebatch[which(rawfilebatch$Location %in% "WS2"),2:3]<-NA
-#write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
+rawfilebatch[which(rawfilebatch$Location %in% "WS2"),2:3]<-NA
+write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
 
 while(any(rawfilebatch$Status %in% NA)){
   rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
@@ -24,7 +24,7 @@ while(any(rawfilebatch$Status %in% NA)){
   rawfilebatch$Status[rawfilebatch$rawfiles%in%rawfiles]<-"Running"
   rawfilebatch$Location[rawfilebatch$rawfiles%in%rawfiles]<-"WS2"
   write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
-  cat("Files Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
+  cat("\n\n################################\nFiles Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
   cat("Files Remaining:",sum(rawfilebatch$Status %in% NA),"\n")
   cat("Current Batch:", length(rawfiles),"\n")
   
