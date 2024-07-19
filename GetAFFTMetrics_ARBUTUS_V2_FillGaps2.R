@@ -3,8 +3,21 @@ rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 localcpath<-"C:/TEMP"
-rawpath<-"N:/mpsg_naip_query2"
+rawpath2<-"N:/mpsg_naip_query2"
+rawpath1<-"N:/mpsg_naip"
+rawpath3<-"N:/mpsg_naip_missing"
+
 localrawpath<-"C:/TEMP/0_raw"
+
+donepaths<-list.files("N:/mpsg_naip_afft/2_aggregated",full.names = T)
+names(donepaths)<-list.files("N:/mpsg_naip_afft/2_aggregated")
+fll<-list.files(donepaths,recursive = T, pattern = "tif")
+donefiles<-lapply(fll,list.files,pattern = ".tif")
+donefiles<-table(do.call(c,donefiles))
+missing.files<-list.files(rawpath3,full.names = F);names(missingfiles)<-gsub(".tif","",list.files(rawpath3))#names(donefiles[donefiles <7])
+
+
+
 indpath<-paste(localcpath,"1_intermediate",sep = "/")
 indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
@@ -12,28 +25,14 @@ aggpath<-paste(localpath,"2_aggregated",sep = "/")
 aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 
 
-rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
-
-rawfilebatch[which(rawfilebatch$Location %in% "WS2"),2:3]<-NA
-write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
-
-while(any(rawfilebatch$Status %in% NA)){
-  rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
-  rawfiles<-rawfilebatch[is.na(rawfilebatch$Status),1]
-  curfilelist<-rawfiles<-rawfiles[1:250]
-  rawfilebatch$Status[rawfilebatch$rawfiles%in%rawfiles]<-"Running"
-  rawfilebatch$Location[rawfilebatch$rawfiles%in%rawfiles]<-"WS2"
-  write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
-  cat("\n\n################################\nFiles Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
-  cat("Files Remaining:",sum(rawfilebatch$Status %in% NA),"\n")
-  cat("Current Batch:", length(rawfiles),"\n")
+rawfiles<-missing.files
   
-  if(length(rawfiles)>0){
-    rl<-list.files(localrawpath)
+    rl<-list.files(localrawpath,pattern = ".tif")
     copy.me<-rawfiles[!rawfiles %in% list.files(localrawpath)]
-    tmp<-pbapply::pblapply(copy.me,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
+    tmp<-pbapply::pblapply(copy.me,function(x){file.copy(paste(rawpath3,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
+    curfilelist<-rawfiles<-list.files(localrawpath,pattern = ".tif")
     rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-curfilelist
-    
+    rawfiles<-rawfiles[missing.files]
     terraOptions(memfrac = .9,datatype = "INT1U")
     gc()
      indexfiles<-table(list.files(indpaths,full.names = F))
@@ -41,43 +40,48 @@ while(any(rawfilebatch$Status %in% NA)){
     need.index<-rawfiles[!names(rawfiles) %in% indexfiles]
 
     if(length(need.index) > 0){
-      library(snowfall)
-
-      sfInit(parallel = T, cpus = 12)
-      sfLibrary(AFFT)
-      sfLibrary(terra)
-      sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","indpaths","rawfiles"))
-      stime<-Sys.time()
-      sfExport("stime")
-      write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
-
-      sfClusterApplyLB(need.index,function(x){
-        terraOptions(memfrac = .9/5,datatype = "FLT4S")
-        GetBandIndices(x,ncpu = 1,outpath = localcpath)
-      write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
-       donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
-       donefiles<-donefiles[2:length(donefiles)]
-       te<-difftime(Sys.time(), stime,units = "secs")
-       prop.done<-length(donefiles)/length(rawfiles)
-       tr<-te*(1-prop.done)/(prop.done)
-       hms<-SDMap::SecsToHMS(tr)
-       write("Progress on Raw Indices",paste(localpath,"progress.txt",sep = "/"),append = F)
-       write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = T)
-       write("",paste(localpath,"progress.txt",sep = "/"),append = T)
-       hms<-SDMap::SecsToHMS(te)
-        
-        write("Time Elapsed:",paste(localpath,"progress.txt",sep = "/"),append = T)
-        write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
-        
-        hms<-SDMap::SecsToHMS(tr)
-        
-        write("Time Remaining:",paste(localpath,"progress.txt",sep = "/"),append = T)
-        write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
-      })
-      sfStop()
+      
+      GetBandIndices(need.index,ncpu = 4,outpath = localcpath)
+    #   
+    #   library(snowfall)
+    # rawpath<-rawpath3
+    #   sfInit(parallel = T, cpus = 15)
+    #   sfLibrary(AFFT)
+    #   sfLibrary(terra)
+    #   sfExport(list =c("rawpath","aggpath","localpath","localcpath","indpath","indpaths","rawfiles"))
+    #   stime<-Sys.time()
+    #   sfExport("stime")
+    #   write("",paste(localpath,"donefiles.txt",sep = "/"),append = F)
+    #  
+    #   sfClusterApplyLB(need.index,function(x){
+    #     terraOptions(memfrac = .9/5,datatype = "FLT4S")
+    #     GetBandIndices(x,ncpu = 1,outpath = localcpath)
+    #     write(x,paste(localpath,"donefiles.txt",sep = "/"),append = T)
+    #     donefiles<-readLines(paste(localpath,"donefiles.txt",sep = "/"))
+    #     donefiles<-donefiles[2:length(donefiles)]
+    #     te<-difftime(Sys.time(), stime,units = "secs")
+    #     prop.done<-length(donefiles)/length(rawfiles)
+    #     tr<-te*(1-prop.done)/(prop.done)
+    #     hms<-SDMap::SecsToHMS(tr)
+    #     write("Progress on Raw Indices",paste(localpath,"progress.txt",sep = "/"),append = F)
+    #     write(paste(round(prop.done * 100,3),"% done"),paste(localpath,"progress.txt",sep = "/"),append = T)
+    #     write("",paste(localpath,"progress.txt",sep = "/"),append = T)
+    #     hms<-SDMap::SecsToHMS(te)
+    #     
+    #     write("Time Elapsed:",paste(localpath,"progress.txt",sep = "/"),append = T)
+    #     write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+    #     
+    #     hms<-SDMap::SecsToHMS(tr)
+    #     
+    #     write("Time Remaining:",paste(localpath,"progress.txt",sep = "/"),append = T)
+    #     write(paste(paste(hms,names(hms)),collapse = "   "),paste(localpath,"progress.txt",sep = "/"),append = T)
+    #   })
+    #   sfStop()
     }
-  }
-  indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
+  
+  indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3]);names(indexfiles)<-indexfiles
+  indexfiles<-indexfiles[missing.files]
+  
   aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
   aggfiles<-list.files(paste(aggpath,list.files(aggpath),sep = "/"),full.names = F)
   aggfiles<-names(table(aggfiles)[table(aggfiles)==7])
@@ -85,9 +89,10 @@ while(any(rawfilebatch$Status %in% NA)){
   
   if(length(indexfiles)>0){
     library(snowfall)
-    sfInit(parallel = T, cpus = 12)
+    sfInit(parallel = T, cpus = 17)
     sfLibrary(AFFT)
     sfLibrary(terra)
+    rawpath<-rawpath1
     sfExport(list =c("rawpath","aggpath","localpath","indexfiles","localrawpath","localcpath","indpaths","rawfiles"))
     stime<-Sys.time()
     sfExport("stime")

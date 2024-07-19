@@ -3,8 +3,21 @@ rm(list = ls())
 gc()
 localpath<-"D:/LocalNaip"
 localcpath<-"C:/TEMP"
-rawpath<-"N:/mpsg_naip_query2"
+rawpath2<-"N:/mpsg_naip_query2"
+rawpath1<-"N:/mpsg_naip"
+
 localrawpath<-"C:/TEMP/0_raw"
+
+donepaths<-list.files("N:/mpsg_naip_afft/2_aggregated",full.names = T)
+names(donepaths)<-list.files("N:/mpsg_naip/afft/2_aggregated")
+donefiles<-lapply(fll,list.files,pattern = ".tif")
+donefiles<-table(do.call(c,donefiles))
+missingfiles<-names(donefiles[donefiles <7])
+
+rf1<-list.files(rawpath1)
+rf2<-list.files(rawpath2)
+
+
 indpath<-paste(localcpath,"1_intermediate",sep = "/")
 indpaths<-paste(indpath,c("ndvi","bri","ndgr","ndng"),sep = "/")
 
@@ -12,29 +25,32 @@ aggpath<-paste(localpath,"2_aggregated",sep = "/")
 aggpaths<-paste(aggpath,c("r","g","n","ndvi","bri","ndgr","ndng"),sep = "/")
 
 
+<<<<<<< HEAD:GetAFFTMetrics_WS2_V2.R
 rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
 
-#rawfilebatch[117:nrow(rawfilebatch),c(2:3)]<-NA
+rawfilebatch[which(rawfilebatch$Location %in% "WS2"),2:3]<-NA
 write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
 
 while(any(rawfilebatch$Status %in% NA)){
   rawfilebatch<-read.csv("N:/mpsg_naip_batch_files/FileLog.csv")
   rawfiles<-rawfilebatch[is.na(rawfilebatch$Status),1]
-  curfilelist<-rawfiles<-rawfiles[1:500]
+  curfilelist<-rawfiles<-rawfiles[1:250]
   rawfilebatch$Status[rawfilebatch$rawfiles%in%rawfiles]<-"Running"
-  rawfilebatch$Location[rawfilebatch$rawfiles%in%rawfiles]<-"Arbutus"
+  rawfilebatch$Location[rawfilebatch$rawfiles%in%rawfiles]<-"WS2"
   write.csv(rawfilebatch,"N:/mpsg_naip_batch_files/FileLog.csv",row.names = F)
-  cat("Files Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
+  cat("\n\n################################\nFiles Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
   cat("Files Remaining:",sum(rawfilebatch$Status %in% NA),"\n")
   cat("Current Batch:", length(rawfiles),"\n")
+=======
+rawfiles<-missing.files
+>>>>>>> 4a1a6712658a34d626134eb6c1b9c037d28c2922:GetAFFTMetrics_ARBUTUS_V2_FillGaps.R
   
-  if(length(rawfiles)>0){
-    rl<-list.files(localrawpath)
+    rl<-list.files(localrawpath,pattern = ".tif")
     copy.me<-rawfiles[!rawfiles %in% list.files(localrawpath)]
-    tmp<-pbapply::pblapply(copy.me,function(x){file.copy(paste(rawpath,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
-    rawfiles<-list.files(localrawpath)
+    tmp<-pbapply::pblapply(copy.me,function(x){file.copy(paste(rawpath1,x,sep = "/"),paste(localrawpath,x,sep = "/"),overwrite = F)})
+    curfilelist<-rawfiles<-list.files(localrawpath,pattern = ".tif")
     rawfiles<-paste(localrawpath,rawfiles,sep = "/");names(rawfiles)<-curfilelist
-    
+    rawfiles<-rawfiles[missing.files]
     terraOptions(memfrac = .9,datatype = "INT1U")
     gc()
      indexfiles<-table(list.files(indpaths,full.names = F))
@@ -43,7 +59,7 @@ while(any(rawfilebatch$Status %in% NA)){
 
     if(length(need.index) > 0){
       library(snowfall)
-    
+    rawpath<-rawpath1
       sfInit(parallel = T, cpus = 15)
       sfLibrary(AFFT)
       sfLibrary(terra)
@@ -77,8 +93,10 @@ while(any(rawfilebatch$Status %in% NA)){
       })
       sfStop()
     }
-  }
-  indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3])
+  
+  indexfiles<-table(list.files(indpaths));indexfiles<-names(indexfiles[indexfiles>3]);names(indexfiles)<-indexfiles
+  indexfiles<-indexfiles[missing.files]
+  
   aggfiles<-table(list.files(aggpaths));aggfiles<-names(aggfiles[aggfiles>6])
   aggfiles<-list.files(paste(aggpath,list.files(aggpath),sep = "/"),full.names = F)
   aggfiles<-names(table(aggfiles)[table(aggfiles)==7])
@@ -86,9 +104,10 @@ while(any(rawfilebatch$Status %in% NA)){
   
   if(length(indexfiles)>0){
     library(snowfall)
-    sfInit(parallel = T, cpus = 22)
+    sfInit(parallel = T, cpus = 17)
     sfLibrary(AFFT)
     sfLibrary(terra)
+    rawpath<-rawpath1
     sfExport(list =c("rawpath","aggpath","localpath","indexfiles","localrawpath","localcpath","indpaths","rawfiles"))
     stime<-Sys.time()
     sfExport("stime")
