@@ -1,58 +1,58 @@
 library(terra)
 library(AFFT)
-setwd("C:/TEMP/ComancheCimarrone/PCA")
-fl<-list.files(pattern = ".tif")
-#load("artifactscores.RData")
-# artifactscores<-lapply(fl,function(x){
-#   plot(rast(x))
-#   cat(x,":",which(fl ==x ),"of",length(fl),"\n\n")
-#   cat("0 = None, 5 = No Info, only Artifact")
-#   return(c(Phenology = readline("Phenology: "),Flightline = readline("Flightline: ")))
-# })
-# noisescores<-list()
-# for(x in fl){cat("\n",x,":",which(fl==x),"out of",length(fl),"\n");noisescores[[x]]<-ScoreNoise(rast(x));print(noisescores[[x]])}
-# noisescores$image<-fl
-# save(noisescores,file = "noisescores.RData")
-# pbapply::pblapply(fl,function(x){ScoreNoise(rast(x))})
-# 
-# setwd("C:/TEMP")
-fl<-list.files(getwd(),full.names = T,pattern = "f.tif");v1<-vrt(fl)
-print(dim(v1))
-for(i in 0:(dim(v1)[3]/3 - 1)){par(mfrow =c(1,3))
-  plotRGB(subset(v1,1:3 + i*3),stretch = "lin")
-  plot(vect(e2),add = T)
-  plotRGB(subset(v1,1:3+i*3),stretch = "lin",ext = e2)
-  plot(vect(e3),add = T)
-  plotRGB(subset(v1,1:3+i*3),stretch = "lin",ext = e3)
-          readline(i*3+1)}
+setwd("C:/TEMP/ComancheCimarrone")
 
-par(mfrow =c(1,3))
-for(i in 0:2){
-  plotRGB(subset(v1,1:3 + i*3),stretch = "hist",main = paste("Components",i+1,"-",i+3))
-  plot(bnd0,add = T,border = "red")
+
+fl<-list.files("C:/TEMP/ComancheCimarrone/PCA",full.names = T,pattern = "f.tif");v1<-vrt(fl)
+print(dim(v1))
+# for(i in 0:(dim(v1)[3]/3 - 1)){par(mfrow =c(1,3))
+#   v2<-subset(v1,1:3+i*3)
+#   plotRGB(v2,stretch = "lin")
+#   plot(vect(e1),add = T)
+#   plot(vect(e2),add = T)
+#   plotRGB(v2,stretch = "lin",ext = e1)
+#   plot(vect(e2),add = T)
+#   plotRGB(v2,stretch = "lin",ext = e2)
+#           readline(i*3+1)}
+# 
+
+
+
+par(mfrow =c(1,2))
+sn<-1
+while(sn < dim(v1)[3] - 3){
+  for(i in c(0:1)+(sn-1)/3){
+    j<-i*3
+    plotRGB(subset(v1,1:3 + j),stretch = "lin",main = paste("Components",j+1,"-",j+3))
+    plot(bnd0,add = T,border = "red")
+  };sn<-sn+6
 }
 
 
 
-#save.image("C:/TEMP/PCA3/CurrentPCA_WD.RData")
-#load(list.files("PCA3",pattern = "pca",full.names = T))
+
 tmp<-cbind(pca1$loadings)
 
-tmp<-tmp[order(abs(tmp[,1]),decreasing = T),]
+comp<-2
+tmp<-tmp[order(abs(tmp[,comp]),decreasing = T),]
 nm<-rownames(tmp);names(nm)<-nm
-topaxis<-lapply(nm,function(x){
-  layout.show(lo<-layout(matrix(c(1,2,1,3,1,4),byrow = F,nrow = 2),heights =c(1.5,4)))
+topaxis<-lapply(nm[1:10],function(x){
+  lo<-layout(matrix(c(5,2,1,3,1,4),byrow = F,nrow = 2),heights =c(1,1), widths =c(1.5,1,1))
   par(mar =c(3,2,3,0))
-  barplot(tmp[x,,drop = F], las = 2, cex.names = .5,main = x)
-  r1<-rast(paste("C:/TEMP/Corrected/",x,".vrt",sep = ""))
+  barplot(tmp[x,1:dim(v1)[3],drop = F], las = 2, cex.names = .5,main = x)
+  r1<-rast(paste("C:/TEMP/ComancheCimarrone/Corrected/",x,".vrt",sep = ""))
   par(mar =c(0,0,0,0))
-  plot(r1, legend = F);plot(vect(e2),add = T)
-  plot(r1,ext = e2, legend = F);plot(vect(e3),add = T)
-  plot(r1,ext = e3, legend = F);plot(vect(e3),add = T)
-  readline(x)
-  return(colnames(tmp[which.max(tmp[x,])]))})
+  plot(r1, legend = F);plot(vect(e1),border = "orange",add = T);plot(vect(e3),add = T, border = 'red')
+  plot(r1,ext = e1, legend = F);plot(vect(e1),border = "orange",add = T)
+  plot(r1,ext = e3, legend = F);plot(vect(e3),add = T, border = "red")
+  plot(v1,comp,main = paste("Comp.",comp,sep = ""),legend = F);plot(vect(e1),border = "orange",add = T);plot(vect(e3),add = T, border = 'red')
+  y<-readline(x)
+  return(y)})
+
+  #return(colnames(tmp[which.max(tmp[x,])]))})
 
 
+dm<-c()
 for(i in 1:15){ ## plots band, top 16 band components
   par(mfrow =c(1,2))
   cv<-subset(v1,i)
@@ -60,13 +60,13 @@ for(i in 1:15){ ## plots band, top 16 band components
   plotRGB(c(cv,cv,cv),stretch = "hist",ext = e1)#
   mtext(paste("Component:",i),col = "red",font = 2, cex = 1.2)
   readline(i)
-  fn<-rownames(tmp)[order(abs(tmp[,i]),decreasing = T)[1:16]]
+  fn<-rownames(tmp)[order(abs(tmp[,i]),decreasing = T)[1:5]]
   for(j in fn){
-    r1<-rast(paste("C:/TEMP/Corrected/",j,".vrt",sep = ""))
+    r1<-rast(paste("C:/TEMP/ComancheCimarrone/Corrected/",j,".vrt",sep = ""))
     plotRGB(c(r1,r1,r1),stretch = "hist")
     plotRGB(c(r1,r1,r1),ext = e1,stretch = "hist")
     mtext(j,line = 0, font = 2)
-    readline(j)
+    if(readline(j) %in% "x"){dm<-c(dm,j)}
   }
 }
 
