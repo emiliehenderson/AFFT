@@ -53,18 +53,16 @@
   
   samp4<-spatSample(tmp,250,method = "stratified",xy = T,na.rm = T)
   
-  table(samp3$imgyr)
   
-  xy<-do.call(rbind,list(samp1[,1:2],samp2[,1:2]),samp3[,1:2],samp4[,1:2])
+  xy<-do.call(rbind,list(samp1[,1:2],samp2[,1:2],samp3[,1:2],samp4[,1:2]))
   print(system.time(mat1<-extract(suppl,xy)))
   
 ## Band by band -----------------
-  bands<-c("ndvi","ndgr","ndng","bri")#"r","r","g","n",
+  bands<-c("r")#,"g","n","ndvi","ndgr","ndng","bri"
   for(b in bands){
     cat("\n\n#################\n#####  ",b,"  #####\n#################\n\n")
     ### Build vrt for only selected tiles. ---------------
     tl<-unique(curtiles$TileID)
-    if(b == "ndvi"){tl<-tl[20:24]}
     fll<-paste("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full/",b,"/",b,"_tiles/",b,"_tile_",tl,".tif",sep = "")
     fllt<-paste("C:/TEMP/PreCorrection/",b,"_tile_",tl,".tif",sep = "")
     cat(" Copying files          \n")
@@ -101,6 +99,7 @@
     sfExport(list = c("mat3","b","s1"))
     
     write("Correcting","D:/LocalNaip/progress.txt",append = F)
+    if(b == "ndvi"){tl<-tl[19]}
     tmp<-pbapply::pblapply(tl,function(tl1){
       cat(tl1)
       nb<-1:(dim(v1)[3])
@@ -116,7 +115,7 @@
         suppl<-rast(s1)
         
         
-        lm1<-lm(y~jdate+sl+imgyr+stateid+jdate*imgyr+jdate*stateid+sl*stateid,data = mat4)
+        lm1<-lm(y~jdate+sl+imgyr+stateid+jdate*imgyr+ jdate*sl,data = mat4)
         
         fll2<-list.files("C:/TEMP/PreCorrection",pattern = ".tif",full.names = T)
         fll2<-fll2[grepl(paste(b,"_tile",sep = ""),fll2)]
