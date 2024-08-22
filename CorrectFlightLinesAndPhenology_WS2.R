@@ -1,6 +1,6 @@
 
 ## Setup -------------------------------------
-  setwd("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full2")
+  setwd("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3")
   library(readxl)
   library(terra)
   library(AFFT)
@@ -51,12 +51,12 @@
   print(system.time(mat1<-extract(suppl,xy)))
   
 ## Band by band -----------------
-  bands<-c("ndvi","ndgr","ndng","bri")#"r","r","g","n",
+  bands<-c("r","g","n","ndvi","ndgr","ndng","bri")#
   for(b in bands){
     cat("\n\n#################\n#####  ",b,"  #####\n#################\n\n")
     ### Build vrt for only selected tiles. ---------------
     tl<-unique(curtiles$TileID)
-    fll<-paste("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full/",b,"/",b,"_tiles/",b,"_tile_",tl,".tif",sep = "")
+    fll<-paste("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3/",b,"/",b,"_tiles/",b,"_tile_",tl,".tif",sep = "")
     fllt<-paste("C:/TEMP/PreCorrection/",b,"_tile_",tl,".tif",sep = "")
     cat(" Copying files          \n")
     pbapply::pblapply(1:length(fll),function(i){file.copy(fll[i],fllt[i])})
