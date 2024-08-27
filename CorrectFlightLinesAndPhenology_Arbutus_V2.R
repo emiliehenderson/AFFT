@@ -1,6 +1,6 @@
 
 ## Setup -------------------------------------
-  setwd("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full2")
+  setwd("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3")
   library(readxl)
   library(terra)
   library(AFFT)
@@ -17,7 +17,8 @@
   fp<-GetFootprints(fl<-list.files("r/r_tiles",full.names = T),return.as.list = T,quiet = T)
   fp<-vect(fp)
   bnd0<-bnd<-project(bnd,fp)
-  bnd<-bnd[bnd$FORESTNUMB %in% c("15","06","10"),]#c("18")c("07","18")
+  bnd<-bnd0[bnd0$FORESTNUMB %in% c("07","18"),]#c("18")
+  plot(bnd0);plot(bnd,add = T, col = "skyblue2",border = "skyblue2")
   bnd<-buffer(bnd,100000)
   
   fp$TileID<- substr(fl,18,20)
@@ -31,14 +32,12 @@
   
   suppl<-crop(suppl,curtiles)
   suppl<-mask(suppl,curtiles)
-  #suppl<-c(as.numeric(subset(suppl,1,"JDateAndLineDist_1")),subset(suppl,2:3))
   nlcdmask<-rast("Y:/MPSG_VegMapping/Data/Raster/Source/nlcd/nlcd_2021_crop.tif")
   nlcdmask<-crop(nlcdmask,suppl)
   nlcdmask<-mask(nlcdmask,suppl)
   nlcdmask<-subset(nlcdmask,1)
   nlcdmask2<-nlcdmask %in% c("Unclassified","Barren Land","Deciduous Forest","Evergreen Forest","Mixed Forest","Shrub/Scrub","Herbaceous","Hay/Pasture","Woody Wetlands","Emergent Herbaceous Wetlands")
   suppl2<-mask(suppl,nlcdmask2,maskvalue = F)
-  #suppl$JDateAndLineDist_1<-as.factor(suppl$JDateAndLineDist_1)
   suppl$imgyr<-as.factor(suppl$imgyr)
   suppl$stateid<-as.factor(suppl$stateid)
   suppl<-writeRaster(suppl,"C:/TEMP/tmp.tif",overwrite = T)
@@ -58,14 +57,20 @@
   print(system.time(mat1<-extract(suppl,xy)))
   
 ## Band by band -----------------
-  bands<-c("r")#,"g","n","ndvi","ndgr","ndng","bri"
+  bands<-c("bri")#"ndvi" "r","g","n","ndgr","ndng",
   for(b in bands){
     cat("\n\n#################\n#####  ",b,"  #####\n#################\n\n")
     ### Build vrt for only selected tiles. ---------------
     tl<-unique(curtiles$TileID)
-    fll<-paste("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full/",b,"/",b,"_tiles/",b,"_tile_",tl,".tif",sep = "")
+    browser()
+    fll<-paste("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3/",b,"/",b,"_tiles/",b,"_tile_",tl,".tif",sep = "")
     fllt<-paste("C:/TEMP/PreCorrection/",b,"_tile_",tl,".tif",sep = "")
     cat(" Copying files          \n")
+    
+    # fix.fp<-paste(gsub("0","",substr(fll,1,nchar(fll)-4)[1:23]),".tif",sep = "")
+    # fix.fp[14]<-"Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3/bri/bri_tiles/bri_tile_80.tif" 
+    # fll[1:23]<-fix.fp
+    # 
     pbapply::pblapply(1:length(fll),function(i){file.copy(fll[i],fllt[i])})
     
     cat("building vrt                \n")
@@ -99,7 +104,7 @@
     sfExport(list = c("mat3","b","s1"))
     
     write("Correcting","D:/LocalNaip/progress.txt",append = F)
-    if(b == "ndvi"){tl<-tl[19]}
+   # if(b == "ndvi"){tl<-tl[19]}
     tmp<-pbapply::pblapply(tl,function(tl1){
       cat(tl1)
       nb<-1:(dim(v1)[3])
@@ -128,7 +133,7 @@
         fll2<-rast(list(y = fll2,suppl3))
         
         outname<-paste(b,"_",colnames(mat3)[b2+5],sep = "")
-        outfile<-paste("C:/TEMP/RockyMountains/Corrected/",outname,"_tile_",tl1,".tif",sep = "")
+        outfile<-paste("C:/TEMP/Dakotas/Corrected/",outname,"_tile_",tl1,".tif",sep = "")
         
         names(fll2)[1]<-"y"
         pred1<-predict(fll2,lm1,na.rm = T)

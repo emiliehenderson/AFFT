@@ -162,7 +162,7 @@
     pca1<-princomp(mat3)
      
     save(pca1,file = "C:/TEMP/RockyMountains/PCA/pca1.RData")
-   
+    load("C:/TEMP/RockyMountains/PCA/pca1.RData")
 ## Go through tile IDs, stack, predict PCA to tile.--------------
   fl<-list.files("C:/TEMP/RockyMountains/Corrected",recursive = T,full.names = T,pattern = '.tif')
   fl<-fl[SDMap::grepll(names(pca1$center),fl,any)]
