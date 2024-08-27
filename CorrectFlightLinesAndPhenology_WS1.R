@@ -14,8 +14,8 @@
   fp$TileID<- substr(fl,18,20)
   
   bnd<-vect("Y:/MPSG_VegMapping/Data/Spatial/Mapping boundaries final/MPSG_mapping_boundaries_final.shp")
-  bnd0<-bnd<-project(bnd,fp)
-  bnd<-bnd[bnd$FORESTNAME %in% c( "Comanche and Cimarron National Grasslands") ,]#c("18")c("07","18")c("15","06","10")
+  bnd0<-project(bnd,fp)
+  bnd<-bnd0[bnd0$FORESTNUMB %in% c("15","06","10") ,]#c("18")c("07","18")c()
   bnd<-buffer(bnd,100000)
   
   curtiles<-intersect(fp,bnd)  
@@ -51,11 +51,11 @@
   print(system.time(mat1<-extract(suppl,xy)))
   
 ## Band by band -----------------
-  bands<-c("r","g","n","ndvi","ndgr","ndng","bri")#
+  bands<-c("g","n","ndvi","ndgr","ndng","bri")#"r",
   for(b in bands){
     cat("\n\n#################\n#####  ",b,"  #####\n#################\n\n")
     ### Build vrt for only selected tiles. ---------------
-    tl<-unique(curtiles$TileID)
+    tl<-unique(curtiles$TileID);tl<-tl[!tl %in% c("181","213")]
     fll<-paste("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3/",b,"/",b,"_tiles/",b,"_tile_",tl,".tif",sep = "")
     fllt<-paste("C:/TEMP/PreCorrection/",b,"_tile_",tl,".tif",sep = "")
     cat(" Copying files          \n")
@@ -72,12 +72,12 @@
     sfExport("fllt")
     sfLibrary(terra)
     sfExport("nm")
-    write("extracting","D:/LocalNaip/progress.txt",append = F)
+    write("extracting","D:/TEMP/LocalNaip/progress.txt",append = F)
     mat3<-do.call(cbind,sfLapply(nm,function(x){
       v<-vrt(fllt);names(v)<-names(rast(fllt[1]))
       v<-subset(v,x)
       e1<-extract(v,xy[,1:2])
-      write(paste("extracted",x,":",which(nm == x),"out of",length(nm)),"D:/LocalNaip/progress.txt",append = T)
+      write(paste("extracted",x,":",which(nm == x),"out of",length(nm)),"D:/TEMP/LocalNaip/progress.txt",append = T)
       e1[,x]
     }))
     sfStop()
@@ -91,18 +91,19 @@
     s1<-sources(suppl)
     sfExport(list = c("mat3","b","s1"))
     
-    write("Correcting","D:/LocalNaip/progress.txt",append = F)
+    write("Correcting","D:/TEMP/LocalNaip/progress.txt",append = F)
+    
     tmp<-pbapply::pblapply(tl,function(tl1){
       cat(tl1)
       nb<-1:(dim(v1)[3])
       sfExport(list = c("tl1","nb")) 
-      write(paste("Tile",tl1,":",which(tl==tl1),"out of",length(tl)),"D:/LocalNaip/Progress.txt",append = T)
-      q<-sfClusterApplyLB(nb,function(b2){
+      write(paste("Tile",tl1,":",which(tl==tl1),"out of",length(tl)),"D:/TEMP/LocalNaip/Progress.txt",append = T)
+      q<-sfClusterApplyLB(nb,function(b2){#
         gc()
         terraOptions(memfrac = .8/20)
         mat4<-mat3[,c(2:5,b2+5)]
         colnames(mat4)[5]<-"y"
-        
+        browser()
         mat4<-mat4[apply(mat4,1,function(x){!any(is.na(x))}),]
         suppl<-rast(s1)
         
@@ -120,7 +121,7 @@
         fll2<-rast(list(y = fll2,suppl3))
         
         outname<-paste(b,"_",colnames(mat3)[b2+5],sep = "")
-        outfile<-paste("C:/TEMP/ComancheCimarrone/Corrected/",outname,"_tile_",tl1,".tif",sep = "")
+        outfile<-paste("C:/TEMP/RockyMountains/Corrected/",outname,"_tile_",tl1,".tif",sep = "")
         
         names(fll2)[1]<-"y"
         pred1<-predict(fll2,lm1,na.rm = T)
