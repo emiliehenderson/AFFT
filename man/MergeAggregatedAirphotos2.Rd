@@ -4,7 +4,7 @@
 \alias{MergeAggregatedAirphotos2}
 \title{Used after GetMetrics.}
 \usage{
-MergeAggregatedAirphotos2(tiflist, filename, outpath2 = outpath2)
+MergeAggregatedAirphotos2(tiflist, filename, outpath = "2_aggregated")
 }
 \arguments{
 \item{tiflist}{list of files to merge}

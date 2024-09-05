@@ -8,7 +8,8 @@ GetMetrics1(
   rasterfile,
   outpath = "1_intermediate",
   fl = indexFuns,
-  parallel = F
+  parallel = F,
+  quiet = T
 )
 }
 \arguments{

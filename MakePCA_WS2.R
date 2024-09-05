@@ -137,37 +137,40 @@
 #  
 # ## Build princomp -------------
 #   ### Gather Info ---------------- 
-#   xy<-samp1[,1:2]
-#     system.time(mat2<-extract(suppl,xy))
-#     
-#     sv2<-sources(v2);names(sv2)<-names(v2)
-#     
-#     sfInit(T,5)
-#     sfLibrary(terra)
-#     sfExport("xy")
-#     df1<-sfClusterApplyLB(sv2,function(x){extract(rast(x),xy)})
-#     
-#     df2<-lapply(df1,function(x){x[,2]})
-#     mat1<-data.frame(do.call(cbind,df2))
-#     colnames(mat1)<-names(sv2)
-#     
-#     
-#     mat3<-cbind(mat1,mat2[,2:ncol(mat2)])
-#     mat1<-mat3[apply(mat3,1,function(x){!any(is.na(x))}),]
-#     rm(list =c("mat2","mat3"))
+  xy<-samp1[,1:2]
+    system.time(mat2<-extract(suppl,xy))
+
+    sv2<-sources(v2);names(sv2)<-names(v2)
+
+    sfInit(T,5)
+    sfLibrary(terra)
+    sfExport("xy")
+    df1<-sfClusterApplyLB(sv2,function(x){extract(rast(x),xy)})
+
+    df2<-lapply(df1,function(x){x[,2]})
+    mat1<-data.frame(do.call(cbind,df2))
+    colnames(mat1)<-names(sv2)
+
+
+    mat3<-cbind(mat1,mat2[,2:ncol(mat2)])
+    mat1<-mat3[apply(mat3,1,function(x){!any(is.na(x))}),]
+    rm(list =c("mat2","mat3"))
 #   
 #   ### Build PCA -------------------
-#     mat3<-mat1
-#     mat1<-mat1[mat1$`r_f-20`>4000,]
-#     drop.me<-list()
-#     
-#     drop.me[[1]]<-c("jdate","sl","imgyr","stateid")
+    mat3<-mat1
+    mat1<-mat1[mat1$`r_f-20`>4000,]
+    # drop.me<-list()
+    # 
+    # drop.me[[1]]<-c("jdate","sl","imgyr","stateid")
 #     
 #     mat3<-mat1[,!colnames(mat1) %in% do.call(c,drop.me)]
 #     pca1<-princomp(mat3)
 #     
    # save(pca1,file = "C:/TEMP/ComancheCimarrone/PCA/pca1.RData")
     load("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full2/ComancheCimarrone/PCA/pca1.RData")
+    
+    pca1<-princomp(mat3[,names(pca1$center)])
+    save(pca1,file = "C:/TEMP/ComancheCimarrone/PCA/pca1.RData")
     ## Go through tile IDs, stack, predict PCA to tile.--------------
     fl<-list.files("C:/TEMP/ComancheCimarrone/Corrected",recursive = T,full.names = T,pattern = '.tif')
     fl<-fl[SDMap::grepll(names(pca1$center),fl,any)]

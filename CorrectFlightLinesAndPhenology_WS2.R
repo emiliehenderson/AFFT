@@ -59,7 +59,7 @@
     fll<-paste("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3/",b,"/",b,"_tiles/",b,"_tile_",tl,".tif",sep = "")
     fllt<-paste("C:/TEMP/PreCorrection/",b,"_tile_",tl,".tif",sep = "")
     cat(" Copying files          \n")
-    pbapply::pblapply(1:length(fll),function(i){file.copy(fll[i],fllt[i])})
+    pbapply::pblapply(1:length(fll),function(i){file.copy(fll[i],fllt[i],overwrite = T)})
     
     cat("building vrt                \n")
     v1<-vrt(fllt);nm<-names(v1)<-names(rast(fllt[1]));names(nm)<-nm
@@ -107,7 +107,7 @@
         suppl<-rast(s1)
         
         
-        lm1<-lm(y~jdate+sl+imgyr+stateid+jdate*imgyr+jdate*stateid+sl*stateid,data = mat4)
+        lm1<-lm(y~jdate+sl+imgyr+jdate*imgyr,data = mat4)#jdate*stateid+stateid++sl*stateid
         
         fll2<-list.files("C:/TEMP/PreCorrection",pattern = ".tif",full.names = T)
         fll2<-fll2[grepl(paste(b,"_tile",sep = ""),fll2)]
