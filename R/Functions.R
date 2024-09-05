@@ -154,7 +154,7 @@ GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","b
 #' @return raster containing multiple bands, describing texture at scales described over scales indicated by zradii, as well as an array of non-textural summary statistics.
 #'
 GetAFFT<-function(filelist,
-                  zradii =c(0.75, 1.25,2.5, 5, 10, 60),outres = 15,
+                  zradii =c(1.25,2.084,4.164,8.34,16.4,30,60),outres = 30,#c(0.75, 1.25,2.5, 5, 10, 60)
                   overwrite = T,ncpu = 7,
                   rawpath = "0_raw",
                   indpath = "1_intermediate",
@@ -175,7 +175,10 @@ GetAFFT<-function(filelist,
       y3<-c(sd(x))
       y4<-log(moments::skewness(c(x))+10) * 50
       y5<-log(moments::kurtosis(c(x)))*100
-      outvec<-round(c(log(y)*100,yb,y2,y3,y4,y5),0)
+      ya<-log(y)*100
+      outvec<-round(c(ya,yb,y2,y3,y4,y5),0)
+      if(length(unique(x)==1)){outvec[outvec%in% c(-Inf,NaN)]<-0}
+      if(any(is.na(outvec))){browser()}
     }else if( length(x) != length(donut) & !any(is.na(x))){browser()
     }else{
       outvec<-rep(NA,(length(unique(zm1))*2+7))
@@ -357,7 +360,7 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
 #' @return matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
 #'
 MakeDonut<-function(zr,res1,fact1,return.rast = T){
-  d<-do.call(c,lapply(zr,function(r,res2 = round(res1[1],0),f2= round(fact1[1],0)){
+  d<-do.call(c,lapply(zr,function(r,res2 = round(res1[1],1),f2= round(fact1[1],0)){
    # browser()
     size <- f2*res2[1]
     e = c(-size/2,size/2,-size/2,size/2)
