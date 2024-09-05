@@ -41,9 +41,7 @@ while(any(rawfilebatch$Status %in% NA)){
   cat("\n\n################################\nFiles Completed:",sum(rawfilebatch$Status %in% "Complete"),"\n")
   cat("Files Remaining:",sum(rawfilebatch$Status %in% NA),"\n")
   cat("Current Batch:", length(rawfiles),"\n")
-=======
-rawfiles<-missing.files
->>>>>>> 4a1a6712658a34d626134eb6c1b9c037d28c2922:GetAFFTMetrics_ARBUTUS_V2_FillGaps.R
+
   
     rl<-list.files(localrawpath,pattern = ".tif")
     copy.me<-rawfiles[!rawfiles %in% list.files(localrawpath)]
