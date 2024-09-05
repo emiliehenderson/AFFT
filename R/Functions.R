@@ -615,6 +615,40 @@ CorrectLayers<-function(y,x,maxsample= 100000 ,sampdens = 50){
   })
   rast(outrastl)
 }
+
+## ReprojectAFFT --------------
+#' Reprojects AFFT quarter-quads to match a snap raster.
+#'
+#' @description Reprojects AFFT quarter-quads to match a snap raster.
+#'
+#' @export
+#'
+#' @param fl character vector with full paths to source images named with the image file name with no path..
+#' @param snap character string, with full path to snap raster image, ideally local.
+#' @param outpath character string with full path to output folder.
+#' @param ncpu number of cpus to use in cluster.
+#' @param p character string pointing to a text file where progress will be reported.
+#' @return list of file paths to projected images.
+#'
+ReprojectAFFT<-function(fl,snap,outpath,ncpu = 24,p="D:/LocalNaip/progress.txt"){
+  require(snowfall)
+  sfInit(T,ncpu)
+  sfLibrary(terra)
+  
+  sfExport(list =c("snap","fl","p"))
+  write("start",p,append = F)
+  sfClusterApplyLB(fl,function(x,s = snap){
+    tmp<-rast(x)
+    s1<-rast(s)
+    tmp<-project(tmp,s1,method = "bilinear",align_only = T)
+    nm<-names(fl)[which(fl== x)]
+    nm<-paste(outpath,nm,sep = "/")
+    write(nm,p,append = T)
+    writeRaster(tmp,nm,overwrite = T)
+    return(nm)
+  })
+}
+
 ## ScoreNoise ------------
 #' Extracts fourier summary of image, returns estimate of how much image variability is at a pixel-to-pixel scale (a.k.a. noise)
 #'
