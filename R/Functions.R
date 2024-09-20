@@ -638,18 +638,18 @@ ReprojectAFFT<-function(fl,snap,outpath,ncpu = 24,p="D:/LocalNaip/progress.txt")
   sfInit(T,ncpu)
   sfLibrary(terra)
   
-  sfExport(list =c("snap","fl","p"))
-  write("start",p,append = F)
-  sfClusterApplyLB(fl,function(x,s = snap){
+  sfExport(list =c("snap","fl","outpath"))
+  fl2<-sfClusterApplyLB(fl,function(x,s = snap){
     tmp<-rast(x)
     s1<-rast(s)
     tmp<-project(tmp,s1,method = "bilinear",align_only = T)
     nm<-names(fl)[which(fl== x)]
     nm<-paste(outpath,nm,sep = "/")
-    write(nm,p,append = T)
     writeRaster(tmp,nm,overwrite = T)
     return(nm)
   })
+  sfStop
+  fl2
 }
 
 ## ScoreNoise ------------

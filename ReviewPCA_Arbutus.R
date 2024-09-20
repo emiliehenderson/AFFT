@@ -1,95 +1,74 @@
 library(terra)
 library(AFFT)
-setwd("C:/TEMP/RockyMountains")
+setwd("C:/TEMP/ComancheCimarrone")
 
 
-fl<-list.files("C:/TEMP/RockyMountains/PCA",full.names = T,pattern = "a.tif");v1<-vrt(fl)
+fl<-list.files("PCA",full.names = T,pattern = ".tif");v1<-vrt(fl)
 print(dim(v1))
-# for(i in 0:(dim(v1)[3]/3 - 1)){par(mfrow =c(1,3))
-#   v2<-subset(v1,1:3+i*3)
-#   plotRGB(v2,stretch = "lin")
-#   plot(vect(e1),add = T)
-#   plot(vect(e2),add = T)
-#   plotRGB(v2,stretch = "lin",ext = e1)
-#   plot(vect(e2),add = T)
-#   plotRGB(v2,stretch = "lin",ext = e2)
-#           readline(i*3+1)}
-# 
 
+windows(10,10);plot(v1,1);e1<-draw();e3<-draw();plot(v1,1,ext = e1);e2<-draw();plot(v1,1,ext = e3);e4<-draw();dev.off()
 
-
-par(mfrow =c(1,3))
+par(mfrow =c(3,3))
 sn<-1
-for(i in c(0:2)+(sn-1)/3){
+for(i in c(0:8)+(sn-1)/3){
   j<-i*3
-  plotRGB(subset(v1,1:3 + j),stretch = "lin",main = paste("Components",j+1,"-",j+3))
+  plotRGB(subset(v1,1:3 + j),stretch = "lin",main = paste("Components",j+1,"-",j+3),ext = e3)
   plot(bnd0,add = T,border = "red")
 }
 
-
-
-#save.image("C:/TEMP/PCA3/CurrentPCA_WD.RData")
-#load(list.files("PCA3",pattern = "pca",full.names = T))
 tmp<-cbind(pca1$loadings)
 
-comp<-12
-tmp<-tmp[order(abs(tmp[,comp]),decreasing = T),]
-nm<-rownames(tmp);names(nm)<-nm
-topaxis<-lapply(nm[1:10],function(x){
-  lo<-layout(matrix(c(5,5,1,1,1,5,5,2,3,4),byrow = T,nrow = 2),heights =c(1.5,4), widths =c(.3,1,1,1,1))
-  par(mar =c(3,2,3,0))
-  barplot(tmp[x,1:dim(v1)[3],drop = F], las = 2, cex.names = .5,main = x)
-  r1<-rast(paste("C:/TEMP/RockyMountains/Corrected/",x,".vrt",sep = ""))
-  par(mar =c(0,0,0,0))
-  plot(r1, legend = F);plot(vect(e2),border = "skyblue",add = T);plot(vect(e3),add = T, border = 'red')
-  plot(r1,ext = e2, legend = F);plot(vect(e2),border = "skyblue",add = T)
-  plot(r1,ext = e3, legend = F);plot(vect(e3),add = T, border = "red")
-  plot(v1,comp,main = paste("Comp.",comp,sep = ""),legend = F)
-  y<-readline(x)
-  return(y)})
 
-  #return(colnames(tmp[which.max(tmp[x,])]))})
+badcomps<-sapply(1:dim(v1)[3],function(i){
+  par(mfrow =c(1,1))
+  plot(v1,i,main = paste("Comp.",i,sep = ""))
+  readline(paste("Comp.",i,": ",sep = ""))
+})
 
+  
 
-dm<-c()
-for(i in 1:15){ ## plots band, top 16 band components
-  par(mfrow =c(1,2))
-  cv<-subset(v1,i)
-  plotRGB(c(cv,cv,cv),stretch = "hist")#
-  plotRGB(c(cv,cv,cv),stretch = "hist",ext = e1)#
-  mtext(paste("Component:",i),col = "red",font = 2, cex = 1.2)
-  readline(i)
-  fn<-rownames(tmp)[order(abs(tmp[,i]),decreasing = T)[1:5]]
-  for(j in fn){
-    r1<-rast(paste("C:/TEMP/RockyMountains/Corrected/",j,".vrt",sep = ""))
-    plotRGB(c(r1,r1,r1),stretch = "hist")
-    plotRGB(c(r1,r1,r1),ext = e1,stretch = "hist")
-    mtext(j,line = 0, font = 2)
-    if(readline(j) %in% "x"){dm<-c(dm,j)}
-  }
+windows(10,10);plot(v1,1);e1<-draw();e3<-draw();plot(v1,1,ext = e1);e2<-draw();plot(v1,1,ext = e3);e4<-draw();dev.off()
+topaxis<-list()
+for(comp in which(badcomps == "x")){
+  tmp<-tmp[order(abs(tmp[,comp]),decreasing = T),]
+  nm<-rownames(tmp);names(nm)<-nm
+  v2<-rast(list.files(,pattern = "vrt"))
+  topaxis[[as.character(comp)]]<-lapply(nm[1:10],function(x){
+    lo<-layout(matrix(c(5,5,1,1,1,5,5,2,3,4),byrow = T,nrow = 2),heights =c(1.5,4), widths =c(.3,1,1,1,1))
+    par(mar =c(3,2,3,0))
+    barplot(tmp[x,1:dim(v1)[3],drop = F], las = 2, cex.names = .5,main = x)
+    r1<-subset(v2,x)
+    par(mar =c(0,0,0,0))
+    plot(r1, legend = F);plot(vect(e2),border = "skyblue",add = T);plot(vect(e3),add = T, border = 'red')
+    plot(r1,ext = e2, legend = F);plot(vect(e2),border = "skyblue",add = T)
+    plot(r1,ext = e3, legend = F);plot(vect(e3),add = T, border = "red")
+    plot(v1,comp,main = paste("Comp.",comp,sep = ""),legend = F)
+    y<-readline(x)
+    return(y)})
 }
 
+cat(paste("'",paste(unique(do.call(c,lapply(topaxis,function(x){y<-do.call(c,x)=="x";names(y)[y]}))),collapse = "','"),"'",sep = ""))
+  
+rs<-data.frame(varname = paste("AFFT_PCA_CC_",1:dim(v1)[3],sep = ""))
+rs$filepath<-paste("Y:/MPSG_VegMapping/Data/Raster/Predictors",rs$varname,sep = "/")
+rs$screening<-1
+rs$screening[badcomps %in% "x"]<-0
+rs$Dakotas<-0
+rs$RockyMountains<-0
+rs$ComancheCimarrone<-1
+rs$datatype <- "AFFT_PCA"
 
-# 
-# Correction options:
-#   1) Add suppl to pca -- doesn't work well. Handles phenology poorly.
-#   2) No pre-pca corrections -- artifacts grow dominant somewhere round about band 15-18.
-#   3) Corrections pre-pca
-#   4) Weed out input corrected images based on artifacts, and noise.  
-#     a) Noise is consistently high for fp-20 
-#     b) Filter out flightline, or phenology scores = 5. (double-check)
-#     c) filter out average score >=4? - doublecheck.
-#   5) dropped flightline scores >= 4, phenology scores = 5, NoiseScores 10% >=600.  Then, filtered additional variables by hand.
-      # 72 Variables used: 
-#     [1] "bri_f-12"    "bri_f-20"    "bri_fp-1.5"  "bri_fp-3"    "bri_fp-6"    "bri_kurt"    "bri_skew"   
-#[8] "g_f-12"      "g_f-20"      "g_f-6"       "g_fp-12"     "g_fp-3"      "g_fp-6"      "g_kurt"     
-#[15] "g_sd"        "g_skew"      "n_fp-0.25"   "n_fp-1.5"    "n_fp-12"     "n_fp-3"      "n_fp-6"     
-#[22] "n_kurt"      "n_mean"      "n_med"       "n_Q95"       "n_skew"      "ndgr_f-12"   "ndgr_f-20"  
-#[29] "ndgr_f-6"    "ndgr_fp-1.5" "ndgr_fp-12"  "ndgr_fp-3"   "ndgr_fp-6"   "ndgr_kurt"   "ndgr_mean"  
-#[36] "ndgr_med"    "ndgr_Q025"   "ndgr_sd"     "ndgr_skew"   "ndng_f-12"   "ndng_f-20"   "ndng_f-3"   
-#[43] "ndng_f-6"    "ndng_fp-3"   "ndng_fp-6"   "ndng_kurt"   "ndng_Q025"   "ndng_sd"     "ndng_skew"  
-#[50] "ndvi_f-1.5"  "ndvi_f-12"   "ndvi_f-20"   "ndvi_f-3"    "ndvi_f-6"    "ndvi_fp-3"   "ndvi_fp-6"  
-#[57] "ndvi_kurt"   "ndvi_mean"   "ndvi_med"    "ndvi_Q025"   "ndvi_Q95"    "ndvi_sd"     "ndvi_skew"  
-#[64] "r_f-12"      "r_f-20"      "r_f-6"       "r_fp-12"     "r_fp-3"      "r_fp-6"      "r_kurt"     
-#[71] "r_sd"        "r_skew"     
+write.csv(rs,"PCA/Rastersource.csv")
+  setwd("PCA")
+  fl<-list.files(,pattern = ".tif")
+for(i in 1:dim(v1)[3]){
+  cat("\n####",i,"####\n")
+  d1<-SDMap::MakeDirIfNeeded(rs$varname[i],goto = F)
+  
+  pbapply::pblapply(fl,function(x){y<-subset(rast(x),i)
+    fn1<-paste(d1,rs$varname[i],sep = "/")
+    fn2<-gsub("pca1",fn1,x)
+    writeRaster(y,filename = fn2,overwrite = T)
+  })
+}
   
