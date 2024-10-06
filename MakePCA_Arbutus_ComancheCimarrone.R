@@ -1,8 +1,9 @@
 # Setup -------------------------------------
-    setwd("C:/TEMP/ComancheCimarrone")
+    
     library(terra)
     library(AFFT)
     library(snowfall)
+    SDMap::MakeDirIfNeeded("ComancheCimarrone","C:/TEMP")
   ###functions----
     pred1<-function(x,y,keepvec = which(cumsum(x$sdev/sum(x$sdev))<.99)){z<-round(predict(x,y)[,keepvec] * 100,0)}
 

@@ -9,17 +9,21 @@
   rownames(seamlines)<-nm<-seamlines$State;names(nm)<-nm
 
 ## Buffer Model Region and Select Tiles ------------------------------
-  fp<-GetFootprints(fl<-list.files("r/r_tiles",full.names = T),return.as.list = T,quiet = T)
-  fp<-vect(fp)
-  fp$TileID<- substr(fl,18,20)
-  
   bnd<-vect("Y:/MPSG_VegMapping/Data/Spatial/Mapping boundaries final/MPSG_mapping_boundaries_final.shp")
-  bnd0<-bnd<-project(bnd,fp)
-  bnd<-bnd[bnd$FORESTNAME %in% c( "Comanche and Cimarron National Grasslands") ,]#c("18")c("07","18")c("15","06","10")
+  bnd0<- bnd<-project(bnd,rast(list.files("Y:/MPSG_VegMapping/Data/Raster/Predictors/elevation",full.names = T,pattern = "tif")[1]))
+  bnd<-bnd[bnd$FORESTORGC %in% c("0118","0207"),]#
   bnd<-buffer(bnd,100000)
+  bnd<-aggregate(bnd)
+  fl<-list.files("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3/r/r_tiles",full.names = T)
+  names(fl)<-substr(list.files("Y:/MPSG_VegMapping/Data/Raster/Source/afft_full3/r/r_tiles",full.names = F),8,10)
   
-  curtiles<-intersect(fp,bnd)  
-  curtiles<-curtiles[!curtiles$TileID %in% "196",]
+  fp<-GetFootprints(fl,return.as.list = F)
+  fp$TileID<-names(fl)
+  crs(fp)<-crs(bnd)
+  bnd1<-intersect(fp,bnd)
+  
+  curtiles<-bnd1<-intersect(fp,bnd)  
+  #curtiles<-curtiles[!curtiles$TileID %in% "196",]
   
   cat("Getting Supplemental layers             \r")
   
@@ -46,12 +50,13 @@
   samp1<-spatSample(suppl2$jdate,650,method = "stratified",xy = T,na.rm = T)
   samp2<-spatSample(suppl2$jdate,75000,method = "random",xy = T,na.rm = T)
   samp3<-spatSample(suppl2$imgyr,500,method = "stratified",xy = T,na.rm = T)
- 
-  xy<-do.call(rbind,list(samp1[,1:2],samp2[,1:2],samp3[,1:2]))
+  samp4<-spatSample(suppl2$stateid,500,method = "stratified",xy = T,na.rm = T)
+  
+  xy<-do.call(rbind,list(samp1[,1:2],samp2[,1:2],samp3[,1:2],samp4[,1:2]))
   print(system.time(mat1<-extract(suppl,xy)))
   
 ## Band by band -----------------
-  bands<-c("r","g","n","ndvi","ndgr","ndng","bri")#
+  bands<-c("g","n","ndvi","ndgr","ndng","bri")#"r",
   for(b in bands){
     cat("\n\n#################\n#####  ",b,"  #####\n#################\n\n")
     ### Build vrt for only selected tiles. ---------------
@@ -120,7 +125,7 @@
         fll2<-rast(list(y = fll2,suppl3))
         
         outname<-paste(b,"_",colnames(mat3)[b2+5],sep = "")
-        outfile<-paste("C:/TEMP/ComancheCimarrone/Corrected/",outname,"_tile_",tl1,".tif",sep = "")
+        outfile<-paste("C:/TEMP/Dakotas/Corrected/",outname,"_tile_",tl1,".tif",sep = "")
         
         names(fll2)[1]<-"y"
         pred1<-predict(fll2,lm1,na.rm = T)
