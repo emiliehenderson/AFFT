@@ -30,20 +30,20 @@
   ###point samples ----- 
     samp1<-spatSample(nlcdmask2,150000,"random",xy = T,na.rm = T)
     
-    fl<-list.files("C:/TEMP/Dakotas/",pattern = ".vrt",full.names = T)
-    nm<-gsub("C:/TEMP/Dakotas/Corrected/","",fl)
-    nm<-reshape2::colsplit(nm,"_",c(1:4))
-    nm<-paste(nm[,1],nm[,2],sep = "_")
-    fll<-split(fl,nm)
-    nm<-names(fll);names(nm)<-nm
-    v1<-pbapply::pblapply(nm,function(x){cat(x);vrt(fll[[x]],filename = paste("C:/TEMP/Dakotas/Corrected/",x,".vrt",sep = ""),overwrite = T)})
-    v2<-rast(v1)
+    fl<-list.files("C:/TEMP/Dakotas/Corrected",pattern = ".vrt",full.names = T)
+    # nm<-gsub("C:/TEMP/Dakotas/Corrected/","",fl)
+    # nm<-reshape2::colsplit(nm,"_",c(1:4))
+    # nm<-paste(nm[,1],nm[,2],sep = "_")
+    # fll<-split(fl,nm)
+    # nm<-names(fll);names(nm)<-nm
+    # v1<-pbapply::pblapply(nm,function(x){cat(x);vrt(fll[[x]],filename = paste("C:/TEMP/Dakotas/Corrected/",x,".vrt",sep = ""),overwrite = T)})
+    v2<-rast(fl)
     xy<-samp1[,1:2]
-    # suppl<-rast("D:/LocalNaip/Suppl/suppl.vrt")
-    # suppl<-crop(suppl,nlcdmask)
-    # nlcdmask<-crop(nlcdmask,suppl)
-    # suppl<-mask(suppl,nlcdmask)
-    suppl<-c(suppl,nlcdmask)
+     suppl<-rast("D:/LocalNaip/Suppl/suppl.vrt")
+     #suppl<-crop(suppl,nlcdmask)
+     #nlcdmask<-crop(nlcdmask,suppl)
+     #suppl<-mask(suppl,nlcdmask)
+    #suppl<-c(suppl,nlcdmask)
 # Artifacts ---------------
   if(!file.exists("C:/TEMP/Dakotas/Corrected/artifactscores.csv")){
     windows(10,10);plot(v2,1);plot(bnd0,add = T);e1<-draw();dev.off()
@@ -101,8 +101,10 @@
     drop.me<-list()
     
     drop.me[[1]]<-c("jdate","sl","imgyr","stateid",unique(c(patchy,stripey)))
- #   drop.me[[2]]<-c('ndng_f-3','ndvi_kurt','ndgr_f-0.25','r_f-0.25','g_f-0.25','ndvi_f-0.25')
- #   drop.me[[3]]<-c('r_med','ndgr_med','g_Q025','r_Q025','ndgr_Q025','ndng_Q025','ndng_med','bri_Q025','n_med','g_f-1.5')
+    #drop.me[[2]]<-c("n_f-20","ndgr_f-12","ndgr_f-6","ndgr_f-3","ndgr_f-1.5","bri_f-1.5","n_f-1.5","g_f-1.5","g_f-0.25")
+    #drop.me[[3]]<-c("n_f-3","bri_f-3","g_f-3","r_f-1.5","ndgr_f-20","ndvi_f-0.25")
+   # drop.me[[4]]<-c('ndgr_kurt','r_f-1.5','bri_f-3')
+   # drop.me[[5]]<-c("ndng_f-0.25","n_fp-1.5","g_med","r_med","n_med","n_mean","r_mean","n_Q95","r_fp-0.25","n_fp-0.25","bri_fp-0.25","g_fp-0.25","n_fp-0.25","r_fp-0.25")
     mat3<-mat1[,!colnames(mat1) %in% do.call(c,drop.me)]
     pca1<-princomp(mat3)
      
@@ -117,18 +119,20 @@ setwd("C:/TEMP/Dakotas")
     df<-data.frame(fl,tid,vn)
     df<-df[!grepl("artifact",df[,1]),]
     fllt<-tapply(df,df$tid,function(x){y<-x[,1];names(y)<-x[,3];y})
-    sfInit(T,10)
+    sfInit(T,15)
     sfLibrary(AFFT)
     sfLibrary(terra)
     sfExport("pred1","pca1","fllt")
   
   write("",file = "C:/TEMP/Progress.txt",append = F)
   tids<-bnd1$TileID[order(expanse(bnd1),decreasing = T)]
+  #tids<-crashtiles
+  {
     fl<-sfClusterApplyLB(tids,function(x){
       y<-rast(fllt[[x]])
       y<-subset(y,names(pca1$center))
       if(!any(is.na(y@ptr@.xData$range_max))){
-        fn<-paste("C:/TEMP/Dakotas/PCA/pca1_",x,".tif",sep = "")
+        fn<-paste("C:/TEMP/Dakotas/PCA/pca1",x,".tif",sep = "")
         predict(y,pca1,fun = pred1,filename = fn,overwrite = T)
         write(x,file = "C:/TEMP/Progress.txt",append = T)
         return(fn)
@@ -136,7 +140,8 @@ setwd("C:/TEMP/Dakotas")
       write(x,file = "C:/TEMP/Progress.txt",append = T)
       return(NULL)
     })
-
+    sfStop()
+}
 # Review results ------------ 
     v1<-vrt(unique(do.call(c,fl)))
     par(mfrow =c(1,3))
