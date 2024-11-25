@@ -15,14 +15,8 @@ fll1<-fll1[!grepl("pca1_",fll1)]
 outfiles<-gsub("/Predictors/","/PCA_PATCH/",fll1);names(outfiles)<-outfiles
 fll1<-fll1[!file.exists(outfiles)]
 
-#handlers("cli")
-#with_progress({
-  
   sfInit(T,24)
   sfLibrary(terra)
-  #sfLibrary(progressr)
-#  p<-progressor(along = fll1)
- # sfExport(p)
 tmp<-sfClusterApplyLB(fll1,function(x){
     outfile<-gsub("/Predictors/","/PCA_PATCH/",x)
     if(!file.exists(outfile)){
@@ -33,9 +27,6 @@ tmp<-sfClusterApplyLB(fll1,function(x){
     }
     gc()
     outfile
-   # p(gsub("C:/RockyMountains/Predictors/","",x))
- # }
-  
 })
-#})
 
+fl<-list.files("Y:/MPSG_VegMapping/Data/Raster/Predictors",pattern = "_RM_",recursive = T)
