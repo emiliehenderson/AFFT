@@ -99,7 +99,6 @@ GetBandIndices<-function(filelist,indfuns = indexFuns,outpath = "1_intermediate"
 GetMetrics1<-function(rasterfile,
                       outpath = "1_intermediate",
                       fl = indexFuns,parallel = F,quiet = T){
-  browser()
   require(terra)
   if(!quiet)cat("\n",rasterfile,"\n")
   
@@ -803,7 +802,7 @@ pause<-function(secs){
 indexFuns<-list(
   ndvi = function(r,outpath_i = getwd()){
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
-    fn2<-paste(outpath_i,"/1_intermediate/ndvi/",fn,sep = "")
+    fn2<-paste(outpath_i,"/ndvi/",fn,sep = "")
     r<-terra::rast(r,lyrs =c(1,4))
     names(r)<-c("one","two")
     y<-as.int(  ((  (r$one-r$two)/(r$one+r$two)  )+1) *126  )
@@ -814,7 +813,7 @@ indexFuns<-list(
     fn2},
   ndgr = function(r,outpath_i = getwd()){
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
-    fn2<-paste(outpath_i,"/1_intermediate/ndgr/",fn,sep = "")
+    fn2<-paste(outpath_i,"/ndgr/",fn,sep = "")
     r<-terra::rast(r,lyrs =c(2,1))
     names(r)<-c("one","two")
     y<-as.int(  ((  (r$one-r$two)/(r$one+r$two)  )+1) *126  )
@@ -827,7 +826,7 @@ indexFuns<-list(
   },
   ndng = function(r,outpath_i= getwd()){
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
-    fn2<-paste(outpath_i,"/1_intermediate/ndng/",fn,sep = "")
+    fn2<-paste(outpath_i,"/ndng/",fn,sep = "")
     r<-terra::rast(r,lyrs =c(4,2))
     names(r)<-c("one","two")
     y<-as.int(  ((  (r$one-r$two)/(r$one+r$two)  )+1) *126  )
@@ -838,7 +837,7 @@ indexFuns<-list(
   },
   bri = function(r,outpath_i= getwd()){
     fn<-strsplit(r,"/")[[1]];fn<-fn[length(fn)]
-    fn2<-paste(outpath_i,"/1_intermediate/bri/",fn,sep = "")
+    fn2<-paste(outpath_i,"/bri/",fn,sep = "")
     r<-terra::rast(r)
     y<-as.int(sum(r)/4)
     writeRaster(y,filename = fn2, datatype = "INT1U",overwrite = T)
