@@ -273,6 +273,10 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
   if(file.exists(outfile)){
     outrast<-rast(outfile)
     res1<-res(rast(rasterfile))[1]
+    
+    readline("## Unit conversion factor in here?-----")
+    browser()
+    
     fact1<-outres/res1
     donut<-round(c(MakeDonut(zradii,res1,fact1)),2)
   }else{
@@ -309,8 +313,16 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
       r1<-writeRaster(r1,filename = intfile,overwrite = T)
       r1
     })[[3]]/60)
-    fact1<-outres/res(r1)[1]
-    donut<-round(c(MakeDonut(zradii,res1 = res(r1)[1],fact1)),2)
+    
+    
+    proj1<-crs(r1,proj = T)
+    inres<-res(r1)[1]
+    if(grepl("+units=ft")){
+      cat("Converting resolution from feet to meters")
+      inres<-DescTools::ConvUnit(inres,from = "ft",to = "m")
+    }
+    fact1<-floor(outres/inres)
+    donut<-round(c(MakeDonut(zradii,res1 = inres,fact1)),2)
     cat("  \n  Elapsed Time 2:",system.time({
       names1<-paste("f",xfun::numbers_to_words(ceiling(unique(donut))),letters[1:length(unique(donut))],sep = "_")
       names2<-c("mean","Q05","Q10","med","Q90","Q95","sdX10","skewX10","kurtX100")
@@ -389,6 +401,7 @@ MakeDonut<-function(zr,res1,fact1,return.rast = T){
 #' @return matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
 #'
 MakeDonut2<-function(zr,res1,inrast){
+  
   fact1<-res(inrast)[1]
   r2<-round(res1[1],0)
   f2a<-round(fact1[1],0)
