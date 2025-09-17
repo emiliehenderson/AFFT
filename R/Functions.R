@@ -146,7 +146,7 @@ GetFullResImageList<-function(fn,subset1 = c("r","g","n","ndvi","ndng","ndgr","b
 #' @param zradii radii for summarizing fft-related statistics.
 #' @param outres resolution of output raster
 #' @param overwrite logical flag -- overwrite existing images?
-#' @param ncpu if > 1, parallel processing will be used internally. Most efficient if set to the number of layers that need processing (e.g., for current config., it's 7: r,g,n,ndvi,ndng,ndgr, and bri).
+#' @param ncpu if > 1, parallel processing will be used internally. 
 #' @param rawpath path to raw, native resolution naip images
 #' @param indpath path to native resolution indices calculated from raw naip images
 #' @param aggpath path to save output files aggregated to 'outres' resolution
@@ -162,8 +162,7 @@ GetAFFT<-function(filelist,
   r0<-rast(paste(rawpath,fn,sep = "/"))
   res1<-round(res(r0)[1],1)
   fact1<-round(outres/res1,0)
-
-  donut<-round(MakeDonut(zradii,res1,fact1,return.rast = F),2)
+  donut<-round(MakeDonut(zradii,res1,fact1,return.rast = F,inproj = crs(r0)),2)
   aggfun1<-function(x,zm1 = donut,na.rm = T){
     if(!any(is.na(x)) & length(x)== length(donut)){
       x<-matrix(x,nrow = ceiling(sqrt(length(x))), byrow = T)
@@ -370,14 +369,18 @@ GetMetrics<-function(rasterfile,outpath1 = "1_intermediate", outpath2 = "2_aggre
 #' @seealso \code{\link{GetMetrics}}
 #' @return matrix with integers that is used for extracting zonal summaries of fft spectrum. Donut values indicate scale of variation in meters.
 #'
-MakeDonut<-function(zr,res1,fact1,return.rast = T){
+MakeDonut<-function(zr,res1,fact1,return.rast = T,inproj){
   d<-do.call(c,lapply(zr,function(r,res2 = round(res1[1],1),f2= round(fact1[1],0)){
    # browser()
     size <- f2*res2[1]
     e = c(-size/2,size/2,-size/2,size/2)
-    pt1<-terra::vect(rbind(c(0,0)))
-    ya<-terra::rast(nrows=size/res2, ncols=size/res2, nlyrs=1,  extent = terra::ext(e), 
-                    resolution = res2)
+    pt1<-terra::vect(rbind(c(0,0)),crs = inproj)
+    ya<-terra::rast(nrows=size/res2, 
+                    ncols=size/res2, 
+                    nlyrs=1, 
+                    extent = terra::ext(e), 
+                    resolution = res2,
+                    crs = inproj)
     y<-terra::rasterize(terra::buffer(pt1, r),ya)
     y<-y * (1/r) * size/2
   }))
@@ -689,8 +692,7 @@ ScoreNoise<-function(y,f1 = 256,f2 = 64, q = T,
   ## Note: feeding this function to a cluster within a wrapper, with one image per core is faster than using a multicore call to aggregate function.#, cores = 1 
 
   if(is.character(y)){y<-terra::rast(y)}
-  d1<-MakeDonut(zr =c(f1/10,f1)*terra::res(y)[1],res1 = terra::res(y)[1],fact1 = f1,return.rast = F)## 2-pixel radius.
-      
+  d1<-MakeDonut(zr =c(f1/10,f1)*terra::res(y)[1],res1 = terra::res(y)[1],fact1 = f1,return.rast = F,inproj = terra::crs(y))## 2-pixel radius.
   testfun<-function(x,fact1 = f1,d=d1, quiet = q){
     x<-matrix(x,nrow = fact1, byrow = T)
     if(!quiet)par(mfrow =c(1,1))
@@ -760,9 +762,9 @@ ScoreArtifacts<-function(y,x,maxsample= 100000 ,sampdens = 50){
   
 }
 ## ViewStackRGB ------------
-#' Useful for viewing multi-band images in rgb space.  Groups bands 1:3, 4:6, ... through the number of layers in the input raster.
+#' Useful for viewing multi-band images in rgb space
 #'
-#' @description Extracts fourier summary of image, returns estimate of how much image variability is at a pixel-to-pixel scale (a.k.a. noise)
+#' @description  Useful for viewing multi-band images in rgb space.  Groups bands 1:3, 4:6, ... through the number of layers in the input raster.
 #'
 #' @export
 #'
@@ -772,7 +774,7 @@ ScoreArtifacts<-function(y,x,maxsample= 100000 ,sampdens = 50){
 ViewStackRGB<-function(x){
   vec<-sort(rep(1:(ceiling(dim(x)[3]/3)),length.out = dim(x)[3]))
   #vec<-split(names(x),vec);names(vec)<-sapply(vec,function(z){paste(z,collapse = "_")})
-  vec<-split(1:length(names(x)),vec)
+  vec<-split(1:length(vec),vec)
   sapply(vec,function(y){
     tsy<-paste(y,collapse = "_")
     if(length(y)==3){
@@ -782,6 +784,40 @@ ViewStackRGB<-function(x){
     }else{
       par(mfrow =c(1,length(y)))
       plot(subset(x,y),main = tsy)
+    }
+    readline(tsy)
+  })
+  return(NULL)
+}
+
+## ViewStackRGB2 ------------
+#' Useful for viewing multi-band images in rgb space - handles two images.
+#'
+#' @description  Useful for viewing multi-band images in rgb space.  Groups bands 1:3, 4:6, ... through the number of layers in the input raster.
+#'
+#' @export
+#'
+#' @param x rast object
+#' @param y rast object, same dimensions as x.
+#' @return returns NULL.  Used for plotting
+#'
+ViewStackRGB2<-function(x,y){
+  vec<-sort(rep(1:(ceiling(dim(x)[3]/3)),length.out = dim(x)[3]))
+  #vec<-split(names(x),vec);names(vec)<-sapply(vec,function(z){paste(z,collapse = "_")})
+  vec<-split(1:length(vec),vec)
+  browser()
+  sapply(vec,function(z){
+    tsy<-paste(y,collapse = "_")
+    if(length(y)==3){
+      par(mfrow =c(1,2))
+      plotRGB(subset(x,z),stretch = "lin", main = "First Raster: Linear Stretch")
+      plotRGB(subset(x,z),stretch = "hist",main = "First Raster: Histogram-equalize\nStretch")
+      plotRGB(subset(y,z),stretch = "lin", main = "Second Raster: Linear Stretch")
+      plotRGB(subset(y,z),stretch = "hist",main = "Second Raster: Histogram-equalize\nStretch")
+    }else{
+      par(mfrow =c(1,length(z)))
+      plot(subset(x,z),main = tsy)
+      plot(subset(y,z),main = tsy)
     }
     readline(tsy)
   })

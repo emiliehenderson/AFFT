@@ -4,7 +4,7 @@
 \alias{MakeDonut}
 \title{Used within GetMetrics.}
 \usage{
-MakeDonut(zr, res1, fact1, return.rast = T)
+MakeDonut(zr, res1, fact1, return.rast = T, inproj)
 }
 \arguments{
 \item{zr}{Radii for nested circles}

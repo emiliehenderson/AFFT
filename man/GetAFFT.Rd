@@ -6,8 +6,8 @@
 \usage{
 GetAFFT(
   filelist,
-  zradii = c(0.75, 1.25, 2.5, 5, 10, 60),
-  outres = 15,
+  zradii = c(1.25, 2.084, 4.164, 8.34, 16.4, 30, 60),
+  outres = 30,
   overwrite = T,
   ncpu = 7,
   rawpath = "0_raw",
@@ -24,7 +24,7 @@ GetAFFT(
 
 \item{overwrite}{logical flag -- overwrite existing images?}
 
-\item{ncpu}{if > 1, parallel processing will be used internally. Most efficient if set to the number of layers that need processing (e.g., for current config., it's 7: r,g,n,ndvi,ndng,ndgr, and bri).}
+\item{ncpu}{if > 1, parallel processing will be used internally.}
 
 \item{rawpath}{path to raw, native resolution naip images}
 
