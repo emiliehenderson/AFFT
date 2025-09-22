@@ -769,25 +769,47 @@ ScoreArtifacts<-function(y,x,maxsample= 100000 ,sampdens = 50){
 #' @export
 #'
 #' @param x rast object
+#' @param ext ext object
 #' @return returns NULL.  Used for plotting
 #'
-ViewStackRGB<-function(x){
+ViewStackRGB<-function(x,ext = NULL){
   vec<-sort(rep(1:(ceiling(dim(x)[3]/3)),length.out = dim(x)[3]))
   #vec<-split(names(x),vec);names(vec)<-sapply(vec,function(z){paste(z,collapse = "_")})
-  vec<-split(1:length(vec),vec)
+  if(is.null(names(x))){vec<-split(1:length(vec),vec)
+  }else{vec<-split(names(x),vec)}
   sapply(vec,function(y){
     tsy<-paste(y,collapse = "_")
     if(length(y)==3){
       par(mfrow =c(1,2))
-      plotRGB(subset(x,y),stretch = "lin", main = "Linear Stretch")
-      plotRGB(subset(x,y),stretch = "hist",main = "Histogram-equalize\nStretch")
+      terra::plotRGB(terra::subset(x,y),stretch = "lin", main = "Linear Stretch", ext = ext)
+      terra::plotRGB(terra::subset(x,y),stretch = "hist",main = "Histogram-equalize\nStretch", ext = ext)
     }else{
       par(mfrow =c(1,length(y)))
-      plot(subset(x,y),main = tsy)
+      plot(terra::subset(x,y),main = tsy)
     }
     readline(tsy)
   })
   return(NULL)
+}
+## ViewStackSingleBandStretch ------------
+#' Useful for viewing multi-band images in rgb space
+#'
+#' @description  Useful for viewing multi-band images in rgb space.  Groups bands 1:3, 4:6, ... through the number of layers in the input raster.
+#'
+#' @export
+#'
+#' @param x rast object
+#' @param ext ext object
+#' @return returns NULL.  Used for plotting
+#'
+ViewStackSingleBandStretch<-function(x,ext = NULL){
+  sapply(1:dim(x)[3],function(y){
+    tsy<-paste(y,collapse = "_")
+    par(mfrow =c(1,2))
+    terra::plotRGB(terra::subset(x,y),1,1,1,stretch = "lin", main = "Linear Stretch", ext = ext)
+    terra::plotRGB(terra::subset(x,y),1,1,1,stretch = "hist",main = "Histogram-equalize\nStretch", ext = ext)
+    readline(tsy)
+  })
 }
 
 ## ViewStackRGB2 ------------
