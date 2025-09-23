@@ -777,19 +777,25 @@ ViewStackRGB<-function(x,ext = NULL){
   #vec<-split(names(x),vec);names(vec)<-sapply(vec,function(z){paste(z,collapse = "_")})
   if(is.null(names(x))){vec<-split(1:length(vec),vec)
   }else{vec<-split(names(x),vec)}
+  names(vec)<-sapply(vec,paste,collapse = "-")
   sapply(vec,function(y){
     tsy<-paste(y,collapse = "_")
+    sy<-terra::subset(x,y)
     if(length(y)==3){
       par(mfrow =c(1,2))
-      terra::plotRGB(terra::subset(x,y),stretch = "lin", main = "Linear Stretch", ext = ext)
-      terra::plotRGB(terra::subset(x,y),stretch = "hist",main = "Histogram-equalize\nStretch", ext = ext)
+      terra::plotRGB(sy,stretch = "lin", main = paste(tsy,": Linear Stretch",sep = ""), ext = ext)
+      terra::plotRGB(sy,stretch = "hist",main = "Histogram-equalize\nStretch", ext = ext)
     }else{
-      par(mfrow =c(1,length(y)))
-      plot(terra::subset(x,y),main = tsy)
+      par(mfrow =c(length(y),2))
+      for(i in 1:dim(sy)[3]){
+        if(i == 1){m1 <- paste(tsy,": Linear Stretch",sep = "");m2<-"Histogram-equalize\nStretch"
+        }else{m1<-m2<-""}
+        plotRGB(sy,i,i,i,main = m1,stretch = "lin")
+        plotRGB(sy,i,i,i,main = m2,stretch = "hist")
+      }
     }
     readline(tsy)
   })
-  return(NULL)
 }
 ## ViewStackSingleBandStretch ------------
 #' Useful for viewing multi-band images in rgb space
