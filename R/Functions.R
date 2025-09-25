@@ -809,7 +809,7 @@ ViewStackRGB<-function(x,ext = NULL){
 #' @return returns NULL.  Used for plotting
 #'
 ViewStackSingleBandStretch<-function(x,ext = NULL){
-  sapply(1:dim(x)[3],function(y){
+  sapply(names(x),function(y){
     tsy<-paste(y,collapse = "_")
     par(mfrow =c(1,2))
     terra::plotRGB(terra::subset(x,y),1,1,1,stretch = "lin", main = "Linear Stretch", ext = ext)
